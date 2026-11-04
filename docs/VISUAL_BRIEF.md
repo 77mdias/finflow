@@ -65,7 +65,7 @@ A captura foi renderizada (desktop 1440 px e mobile 390 px) e os estilos computa
 | **Profundidade** | Bordas hairline; sombras só para o que flutua (menus, diálogos, cartão virtual). |
 | **Iconografia** | Lucide, traço 1,5 px, 20 px na interface e 24 px em stat tiles; nunca ícones preenchidos misturados. |
 | **Imagens** | Sem fotos de banco de imagens. Mockups do próprio produto (telas reais) na landing; ilustrações de estado vazio em traço `iris-300`. |
-| **Serviços** | Assinaturas mostram avatar com iniciais e cor neutra/categoria; logotipos de terceiros só via catálogo licenciado (v1.1). Cartões virtuais **nunca** usam logotipos reais de bandeiras ou bancos. |
+| **Serviços e instituições** | Assinaturas mostram avatar com iniciais e cor neutra/categoria; logotipos de serviços só via catálogo licenciado (v1.1). Cartões mostram um **selo da instituição** com iniciais + cor de referência ou um **ícone enviado pelo próprio usuário** (privado); logotipos oficiais embutidos ficam para o futuro, com as condições do [DESIGN §11](../DESIGN.md#11-futuro-logotipos-oficiais-das-instituições). Bandeiras (Visa, Mastercard…) só como texto. |
 | **Dados** | Gradiente `iris-500 → iris-200`; previsto com hachura; uma cor por cartão; categorias em paleta de 8 cores. |
 | **Movimento** | Discreto (120–320 ms, `ease-out`); contagem de números só na primeira renderização; respeitar `prefers-reduced-motion`. |
 
@@ -103,6 +103,6 @@ Fonte editável: [`design/visual-brief-board.html`](design/visual-brief-board.ht
 |---|---|
 | Logo | Wordmark "finflow" em Manrope (como na prancha) ou símbolo próprio? |
 | Tema padrão | Seguir o sistema (`prefers-color-scheme`) ou começar sempre claro? |
-| Logos de serviços | Avatar com iniciais no MVP; catálogo com logos licenciados na v1.1? |
+| Logos de serviços | Avatar com iniciais no MVP; catálogo com logos licenciados na v1.1? (instituições dos cartões: decidido — iniciais + ícone do usuário no MVP, logos oficiais no futuro) |
 | Ilustrações | Traço simples em `iris-300` (proposto) ou outro estilo? |
 | Landing | Mockups em celular, em navegador desktop ou ambos? |

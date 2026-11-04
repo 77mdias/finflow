@@ -113,6 +113,31 @@ O enum `CARD_COLORS` do backend mapeia para gradientes (ângulo 135°). Texto so
 
 ---
 
+### 2.5 Instituições (selo do cartão)
+
+Cada cartão pode indicar a **instituição** que o emite. No MVP o FinFlow **não embute logotipos**: o selo usa a **cor de referência** abaixo com as **iniciais**, ou um **ícone enviado pelo próprio usuário** (§6.7). As cores são aproximações para reconhecimento rápido — não reproduções oficiais — e o contraste das iniciais foi medido (AA ≥ 4,5:1).
+
+| Instituição         | Iniciais                      | Cor de referência | Texto das iniciais | Contraste |
+| ------------------- | ----------------------------- | ----------------- | ------------------ | --------- |
+| Nubank              | NU                            | `#820AD1`         | branco             | 7,21      |
+| PicPay              | PP                            | `#11A84E`         | `ink-800`          | 5,31      |
+| Itaú                | IT                            | `#EC7000`         | `ink-800`          | 5,43      |
+| Inter               | IN                            | `#FF7A00`         | `ink-800`          | 6,34      |
+| C6 Bank             | C6                            | `#242424`         | branco             | 15,52     |
+| Bradesco            | BR                            | `#CC092F`         | branco             | 5,76      |
+| Santander           | SA                            | `#EC0000`         | branco             | 4,60      |
+| Banco do Brasil     | BB                            | `#FCE300`         | `ink-800`          | 12,71     |
+| Caixa               | CX                            | `#005CA9`         | branco             | 6,77      |
+| Mercado Pago        | MP                            | `#00A3E0`         | `ink-800`          | 5,77      |
+| BTG Pactual         | BT                            | `#0B2B5B`         | branco             | 13,90     |
+| Neon                | NE                            | `#0BA5E9`         | `ink-800`          | 5,97      |
+| PagBank             | PB                            | `#1FA85A`         | `ink-800`          | 5,37      |
+| XP                  | XP                            | `#1A1A1A`         | branco             | 17,40     |
+| Outra (texto livre) | 2 primeiras letras do emissor | `ink-600`         | branco             | 5,86      |
+
+- A lista é editável (configuração do produto, não código espalhado); novas instituições entram com cor + iniciais + contraste verificado.
+- A **cor do cartão** (§2.3) continua sendo escolha do usuário e é independente da instituição; o formulário sugere a cor mais próxima da instituição como padrão.
+
 ## 3. Tipografia
 
 | Família                        | Papel                                                    | Configuração                                                                                      |
@@ -371,9 +396,38 @@ Trilho `--surface-subtle` `radius-full` padding 4; item ativo `--surface` + `sha
 | Em teste (`TRIAL`)         | `iris-50` / `iris-700`                          | ampulheta  |
 | Pausada / Cancelada        | `--surface-muted` / `--fg-muted`                | pausa / x  |
 
-### 6.7 Cartão virtual (`CardVisual`)
+### 6.7 Cartão virtual (`CardVisual`) e selo da instituição
 
-Proporção 1.586:1 (ISO/IEC 7810), `radius-lg`, gradiente da §2.3, `shadow-card`, textura de ruído a 4% opcional. Conteúdo: apelido (`heading-sm`), bandeira (rótulo/ícone genérico — **sem logotipos de bandeiras reais**), "•••• 1234" se houver `last4` (fictício), e no rodapé "Fecha dia 25 · Vence dia 5". Arquivado: escala de cinza + 60% opacidade.
+**Cartão:** proporção 1.586:1 (ISO/IEC 7810), `radius-lg`, gradiente da §2.3, `shadow-card`, textura de ruído a 4% opcional. Conteúdo:
+
+- canto superior esquerdo: **selo da instituição** (28 px) + apelido (`heading-sm`);
+- canto superior direito: bandeira **só como texto** (`VISA`, `MASTERCARD`, `ELO`… em `caption` 600, 85% de opacidade) — nunca logotipo de bandeira;
+- centro: "•••• 1234" se houver `last4` (fictício);
+- rodapé: "Fecha dia 25 · Vence dia 5".
+
+Arquivado: escala de cinza + 60% de opacidade. O cartão é uma **representação**, não uma réplica: nunca imitar a arte/layout de um cartão real (cores e logo da instituição ficam restritos ao selo).
+
+**Selo da instituição (`InstitutionBadge`)** — `radius-md` (ícone quadrado arredondado), tamanhos 20 (listas), 28 (cartão), 40 (detalhe/formulário). Ordem de exibição:
+
+1. **Ícone personalizado** enviado pelo usuário (se existir);
+2. **Iniciais** sobre a cor de referência da instituição (§2.5), `label` 600;
+3. **Genérico:** ícone de cartão (lucide `credit-card`) sobre `--surface-muted`.
+
+Sobre o cartão (fundo em gradiente), o selo ganha anel `0 0 0 1.5px rgba(255,255,255,.6)` para destacar. O selo também aparece em `ChargeRow`, faturas e no seletor de cartão dos formulários, para reconhecer o cartão de relance.
+
+**Ícone personalizado (upload do usuário)**
+
+| Regra                   | Valor                                                                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Formatos aceitos        | PNG, JPEG, WebP (sem SVG — risco de script embutido)                                                                                     |
+| Tamanho máximo do envio | 512 KB                                                                                                                                   |
+| Processamento           | Recorte quadrado no cliente; o servidor **re-codifica** para WebP 256×256, remove metadados (EXIF) e rejeita o que não for imagem válida |
+| Armazenamento           | Privado (R2), acessível só pelo dono via URL assinada de curta duração; nunca público, nunca compartilhado entre usuários                |
+| Escopo                  | Por cartão; substituir ou remover a qualquer momento (remover volta para as iniciais)                                                    |
+| Aviso no envio          | "Use apenas imagens que você tem direito de usar. O ícone fica visível só para você."                                                    |
+| LGPD                    | Incluído na exportação de dados; apagado no purge da conta                                                                               |
+
+UX do envio: no formulário do cartão, "Ícone do cartão" com pré-visualização ao vivo do `CardVisual`, ações "Enviar imagem", "Usar iniciais" e "Remover". Estados de erro: formato/tamanho inválido com mensagem clara (`body-sm`, `danger-700`).
 
 ### 6.8 Linha de cobrança (`ChargeRow`)
 
@@ -440,13 +494,31 @@ Regras: foco sempre visível (`--ring`); status com ícone + texto; alvos ≥ 44
 
 ## 10. Faça / não faça
 
-| ✅ Faça                                       | ❌ Não faça                                       |
-| --------------------------------------------- | ------------------------------------------------- |
-| Um valor principal grande por tela            | Vários números do mesmo tamanho competindo        |
-| `iris-600` em botões e links com texto        | `iris-400/500` com texto branco (contraste < 4,5) |
-| Bordas hairline para separar cards            | Sombras pesadas em todos os cards                 |
-| "Previsto" com opacidade **e** hachura/rótulo | Distinguir previsto só pela cor                   |
-| Pílulas para botões e chips                   | Misturar botões pílula e retangulares             |
-| Ícones de traço 1,5 px (lucide)               | Ícones preenchidos misturados com traço           |
-| Logos/marcas genéricas no cartão virtual      | Logotipos reais de bandeiras ou bancos            |
-| Tokens (`bg-[--surface]`, `text-ink-600`)     | Hex soltos no código                              |
+| ✅ Faça                                                              | ❌ Não faça                                               |
+| -------------------------------------------------------------------- | --------------------------------------------------------- |
+| Um valor principal grande por tela                                   | Vários números do mesmo tamanho competindo                |
+| `iris-600` em botões e links com texto                               | `iris-400/500` com texto branco (contraste < 4,5)         |
+| Bordas hairline para separar cards                                   | Sombras pesadas em todos os cards                         |
+| "Previsto" com opacidade **e** hachura/rótulo                        | Distinguir previsto só pela cor                           |
+| Pílulas para botões e chips                                          | Misturar botões pílula e retangulares                     |
+| Ícones de traço 1,5 px (lucide)                                      | Ícones preenchidos misturados com traço                   |
+| Selo com iniciais + cor de referência, ou ícone enviado pelo usuário | Logotipos de bancos/bandeiras embutidos no app (ver §11)  |
+| Bandeira do cartão como texto (`VISA`, `ELO`)                        | Imitar a arte de um cartão real ou o logo de uma bandeira |
+| Tokens (`bg-[--surface]`, `text-ink-600`)                            | Hex soltos no código                                      |
+
+---
+
+## 11. Futuro: logotipos oficiais das instituições
+
+**Fora do MVP.** Exibir logotipos oficiais embutidos no app (galeria de logos de bancos e apps) fica para uma fase posterior, porque logos são marcas registradas e obras protegidas e o FinFlow é um produto comercial. Quando for adotado, valem **todas** as condições abaixo:
+
+| Condição                | Detalhe                                                                                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Base legal              | Avaliação jurídica prévia (Lei 9.279/96 — marcas; Lei 9.610/98 — direito autoral) e, idealmente, autorização da instituição ou fornecedor de logos com termos de uso explícitos |
+| Uso apenas referencial  | Logo pequeno, no lugar do selo (§6.7), só para identificar a instituição — nunca como arte do cartão nem como destaque visual                                                   |
+| Integridade             | Sem alterar cores, proporções ou recortes; seguir o manual de marca de cada instituição                                                                                         |
+| Sem afiliação implícita | Aviso visível na tela de personalização: "Marcas pertencem aos seus titulares. O FinFlow não é afiliado a elas."                                                                |
+| Fora do marketing       | Logos de terceiros nunca em landing, anúncios, capturas da loja ou materiais de divulgação                                                                                      |
+| Bandeiras de cartão     | Visa, Mastercard, Elo, Amex e Hipercard continuam **só como texto** (manuais de marca restringem o uso por não emissores)                                                       |
+| Retirada                | Processo para remover um logo prontamente se a instituição solicitar                                                                                                            |
+| Fallback                | Ícone personalizado do usuário e iniciais (§2.5) continuam disponíveis                                                                                                          |
