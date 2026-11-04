@@ -168,7 +168,7 @@ Diferenciais:
 | Regras de fechamento/vencimento divergirem dos bancos reais (feriados, dia 31) | Alta | Médio | Regras documentadas no SRS (RN-03 a RN-06) + ajuste manual de datas da fatura |
 | Lembretes duplicados ou não enviados | Média | Alto | Jobs idempotentes com tabela de envios e chave única |
 | Baixa retenção após cadastro inicial | Alta | Alto | Lembretes de valor (resumo semanal), onboarding guiado |
-| Custos de infra escalarem com e-mails | Baixa | Baixo | Resend free tier (3k/mês), agrupamento em resumo diário |
+| Custos de infra escalarem com e-mails | Baixa | Baixo | Resend free (3k/mês, 100/dia) só no beta fechado; plano Pro antes do beta aberto; resumo diário reduz volume |
 
 ## 12. Roadmap
 

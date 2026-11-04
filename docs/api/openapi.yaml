@@ -1,0 +1,641 @@
+openapi: 3.1.0
+info:
+  title: FinFlow HTTP API
+  version: 1.0.0
+  summary: Route Handlers HTTP do FinFlow (jobs, webhooks, exportação, descadastro, health).
+  description: |
+    Contrato das rotas HTTP expostas pelo FinFlow. Server Actions e Query services
+    (superfícies internas) estão documentados em `docs/API_SPEC.md` e não fazem parte
+    deste contrato. Autenticação (`/api/auth/*`) é gerenciada pelo Better Auth.
+
+    Convenções: valores monetários em centavos (inteiros), datas de negócio em `YYYY-MM-DD`,
+    timestamps em ISO 8601 UTC. Toda resposta inclui o header `X-Request-Id`.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://finflow.app
+    description: Produção
+  - url: http://localhost:3000
+    description: Desenvolvimento local
+tags:
+  - name: Operação
+    description: Saúde da aplicação.
+  - name: Jobs
+    description: Endpoints invocados pelo Vercel Cron. Idempotentes.
+  - name: Conta
+    description: Recursos do usuário autenticado.
+  - name: E-mail
+    description: Descadastro e webhooks do provedor de e-mail.
+
+paths:
+  /api/health:
+    get:
+      tags: [Operação]
+      operationId: getHealth
+      summary: Liveness e conectividade com o banco
+      security: []
+      responses:
+        "200":
+          description: Aplicação e banco disponíveis.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: ok
+                db: ok
+                version: 1.0.0+c3100e0
+        "503":
+          description: Banco indisponível.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example:
+                status: degraded
+                db: error
+                version: 1.0.0+c3100e0
+
+  /api/cron/daily:
+    get:
+      tags: [Jobs]
+      operationId: runDailyJob
+      summary: Job diário
+      description: |
+        Para cada lote de usuários, no fuso de cada um: converte testes encerrados (TRIAL→ACTIVE),
+        materializa ocorrências de assinaturas (RN-11), fecha faturas (OPEN→CLOSED/PAID),
+        marca vencidas (OVERDUE), garante a fatura OPEN do ciclo corrente, reconcilia caches
+        (RN-16) e remove sessões/verificações expiradas. Agenda: `0 3 * * *` (UTC).
+      security:
+        - cronSecret: []
+      responses:
+        "200":
+          $ref: "#/components/responses/JobRunOk"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          $ref: "#/components/responses/JobAlreadyRunning"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/cron/reminders:
+    get:
+      tags: [Jobs]
+      operationId: runRemindersJob
+      summary: Job de lembretes
+      description: |
+        Gera e envia lembretes (INVOICE_DUE, INVOICE_OVERDUE, SUBSCRIPTION_CHARGE, TRIAL_ENDING,
+        DAILY_DIGEST) para usuários cujo horário local está entre 08:00 e 09:00 (RN-20).
+        Idempotente por (usuário, tipo, entidade, data-alvo, canal) — RN-17.
+      security:
+        - cronSecret: []
+      responses:
+        "200":
+          $ref: "#/components/responses/JobRunOk"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          $ref: "#/components/responses/JobAlreadyRunning"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/cron/purge:
+    get:
+      tags: [Jobs]
+      operationId: runPurgeJob
+      summary: Purge LGPD e retenção
+      description: |
+        Remove definitivamente contas com `deleted_at` há mais de 30 dias e aplica a política de
+        retenção (notificações > 180 dias; job_runs e webhook_events > 90 dias). Agenda: `0 5 * * 0`.
+      security:
+        - cronSecret: []
+      responses:
+        "200":
+          $ref: "#/components/responses/JobRunOk"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          $ref: "#/components/responses/JobAlreadyRunning"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/export:
+    get:
+      tags: [Conta]
+      operationId: exportMyData
+      summary: Exportação de dados (LGPD)
+      description: Retorna todos os dados do usuário autenticado (RF-006). Limite de 3 requisições por hora.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Arquivo JSON com os dados do usuário.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
+            Content-Disposition:
+              description: Força o download.
+              schema:
+                type: string
+                example: attachment; filename="finflow-export-2026-11-04.json"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataExport"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/unsubscribe:
+    post:
+      tags: [E-mail]
+      operationId: unsubscribe
+      summary: Descadastro one-click (RFC 8058)
+      description: |
+        Desativa o tipo de lembrete indicado no token. Chamado pelos provedores de e-mail
+        via `List-Unsubscribe-Post: List-Unsubscribe=One-Click` ou pela página `/unsubscribe`.
+        Idempotente.
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: Token HMAC-SHA256 `base64url(payload).base64url(assinatura)`.
+          schema:
+            type: string
+            pattern: "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$"
+            maxLength: 512
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                List-Unsubscribe:
+                  type: string
+                  const: One-Click
+      responses:
+        "200":
+          description: Descadastro aplicado (ou já aplicado anteriormente).
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unsubscribed]
+                properties:
+                  unsubscribed:
+                    $ref: "#/components/schemas/NotificationType"
+        "400":
+          description: Token malformado ou assinatura inválida.
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Link de descadastro inválido.
+                  requestId: 8a1d0c9e-2b7f-4a8e-9a51-6f1f4b7b2c10
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/webhooks/resend:
+    post:
+      tags: [E-mail]
+      operationId: receiveResendWebhook
+      summary: Webhook de eventos de e-mail (Resend)
+      description: |
+        Recebe eventos assinados via Svix. `email.bounced` (hard) e `email.complained`
+        preenchem `users.email_suppressed_at`; `email.delivered` marca a notificação como SENT.
+        Eventos repetidos (mesmo `svix-id`) são ignorados (tabela `webhook_events`).
+        Requisições com timestamp fora de ±5 minutos são rejeitadas.
+      security:
+        - svixSignature: []
+      parameters:
+        - name: svix-id
+          in: header
+          required: true
+          schema:
+            type: string
+            maxLength: 100
+        - name: svix-timestamp
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]+$"
+        - name: svix-signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendWebhookEvent"
+            example:
+              type: email.bounced
+              created_at: "2026-11-04T11:02:10.000Z"
+              data:
+                email_id: 4ef9a417-02e9-4d39-ad75-9611e0fcc33c
+                to: ["ana@exemplo.com"]
+                subject: Fatura do Roxinho vence em 3 dias
+                bounce:
+                  type: Permanent
+      responses:
+        "200":
+          description: Evento aceito (inclusive duplicado).
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/X-Request-Id"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [received]
+                properties:
+                  received:
+                    type: boolean
+                    const: true
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+components:
+  securitySchemes:
+    cronSecret:
+      type: http
+      scheme: bearer
+      description: "`Authorization: Bearer $CRON_SECRET` — enviado automaticamente pelo Vercel Cron."
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Secure-better-auth.session_token
+      description: Cookie de sessão do Better Auth (HttpOnly, Secure, SameSite=Lax).
+    svixSignature:
+      type: apiKey
+      in: header
+      name: svix-signature
+      description: Assinatura HMAC Svix sobre `svix-id.svix-timestamp.body` com `RESEND_WEBHOOK_SECRET`.
+
+  headers:
+    X-Request-Id:
+      description: Identificador de correlação com logs e Sentry.
+      schema:
+        type: string
+        format: uuid
+    Retry-After:
+      description: Segundos até a próxima tentativa permitida.
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    JobRunOk:
+      description: Execução concluída (total ou parcialmente).
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/JobRunResult"
+    JobAlreadyRunning:
+      description: Outra execução do mesmo job detém o advisory lock.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: CONFLICT
+              message: Job já em execução.
+              requestId: 8a1d0c9e-2b7f-4a8e-9a51-6f1f4b7b2c10
+    Unauthenticated:
+      description: Credencial ausente ou inválida.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: Credencial inválida.
+              requestId: 8a1d0c9e-2b7f-4a8e-9a51-6f1f4b7b2c10
+    RateLimited:
+      description: Limite de requisições excedido.
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+        Retry-After:
+          $ref: "#/components/headers/Retry-After"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Muitas tentativas. Tente novamente em instantes.
+              requestId: 8a1d0c9e-2b7f-4a8e-9a51-6f1f4b7b2c10
+    InternalError:
+      description: Erro inesperado (reportado ao Sentry).
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/X-Request-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorCode:
+      type: string
+      enum:
+        - UNAUTHENTICATED
+        - NOT_FOUND
+        - VALIDATION_ERROR
+        - CONFLICT
+        - RATE_LIMITED
+        - PLAN_LIMIT_REACHED
+        - CARD_ARCHIVED
+        - CARD_HAS_ACTIVE_SUBSCRIPTIONS
+        - CARD_HAS_HISTORY
+        - INVALID_STATE_TRANSITION
+        - INVOICE_LOCKED
+        - PAYMENT_EXCEEDS_BALANCE
+        - CATEGORY_IS_SYSTEM
+        - SUBSCRIPTION_HAS_CHARGES
+        - INTERNAL
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code:
+              $ref: "#/components/schemas/ErrorCode"
+            message:
+              type: string
+            requestId:
+              type: string
+              format: uuid
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+
+    Health:
+      type: object
+      required: [status, db, version]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        db:
+          type: string
+          enum: [ok, error]
+        version:
+          type: string
+
+    JobRunResult:
+      type: object
+      required: [jobRunId, job, status, startedAt, finishedAt, stats]
+      properties:
+        jobRunId:
+          type: string
+          format: uuid
+        job:
+          type: string
+          enum: [DAILY, REMINDERS, PURGE, BACKUP]
+        status:
+          type: string
+          enum: [SUCCEEDED, PARTIAL, FAILED]
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        stats:
+          type: object
+          description: Contadores específicos do job.
+          additionalProperties:
+            type: integer
+            minimum: 0
+          example:
+            usersProcessed: 1240
+            chargesMaterialized: 3311
+            invoicesClosed: 402
+            errors: 0
+
+    DateOnly:
+      type: string
+      format: date
+      examples: ["2026-12-05"]
+    ReferenceMonth:
+      type: string
+      pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+      examples: ["2026-12"]
+    Cents:
+      type: integer
+      description: Valor monetário em centavos.
+      examples: [5590]
+
+    NotificationType:
+      type: string
+      enum: [INVOICE_DUE, INVOICE_OVERDUE, SUBSCRIPTION_CHARGE, TRIAL_ENDING, DAILY_DIGEST]
+
+    ResendWebhookEvent:
+      type: object
+      required: [type, created_at, data]
+      properties:
+        type:
+          type: string
+          enum:
+            - email.sent
+            - email.delivered
+            - email.delivery_delayed
+            - email.bounced
+            - email.complained
+        created_at:
+          type: string
+          format: date-time
+        data:
+          type: object
+          required: [email_id]
+          properties:
+            email_id:
+              type: string
+            to:
+              type: array
+              items:
+                type: string
+                format: email
+            subject:
+              type: string
+            bounce:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: Permanent (hard) ou Transient (soft).
+          additionalProperties: true
+
+    ExportCard:
+      type: object
+      required: [id, nickname, brand, closingDay, dueDay]
+      properties:
+        id: { type: string, format: uuid }
+        nickname: { type: string }
+        issuer: { type: [string, "null"] }
+        brand: { type: string, enum: [VISA, MASTERCARD, ELO, AMEX, HIPERCARD, OTHER] }
+        last4: { type: [string, "null"], pattern: "^[0-9]{4}$" }
+        color: { type: string }
+        limitCents: { type: [integer, "null"] }
+        closingDay: { type: integer, minimum: 1, maximum: 31 }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        archivedAt: { type: [string, "null"], format: date-time }
+
+    ExportSubscription:
+      type: object
+      required: [id, name, amountCents, currency, cycle, status, cardId]
+      properties:
+        id: { type: string, format: uuid }
+        cardId: { type: string, format: uuid }
+        categoryId: { type: [string, "null"], format: uuid }
+        name: { type: string }
+        amountCents: { $ref: "#/components/schemas/Cents" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        cycle: { type: string, enum: [WEEKLY, MONTHLY, QUARTERLY, SEMIANNUAL, YEARLY] }
+        status: { type: string, enum: [TRIAL, ACTIVE, PAUSED, CANCELED] }
+        nextChargeDate: { $ref: "#/components/schemas/DateOnly" }
+        trialEndsOn: { type: [string, "null"], format: date }
+        canceledOn: { type: [string, "null"], format: date }
+
+    ExportInvoice:
+      type: object
+      required: [id, cardId, referenceMonth, closingDate, dueDate, totalCents, paidCents, status]
+      properties:
+        id: { type: string, format: uuid }
+        cardId: { type: string, format: uuid }
+        referenceMonth: { $ref: "#/components/schemas/ReferenceMonth" }
+        periodStart: { $ref: "#/components/schemas/DateOnly" }
+        closingDate: { $ref: "#/components/schemas/DateOnly" }
+        dueDate: { $ref: "#/components/schemas/DateOnly" }
+        totalCents: { $ref: "#/components/schemas/Cents" }
+        paidCents: { $ref: "#/components/schemas/Cents" }
+        status: { type: string, enum: [OPEN, CLOSED, PARTIALLY_PAID, PAID, OVERDUE] }
+
+    ExportCharge:
+      type: object
+      required: [id, invoiceId, sourceType, chargeDate, description, amountCents]
+      properties:
+        id: { type: string, format: uuid }
+        invoiceId: { type: string, format: uuid }
+        sourceType: { type: string, enum: [SUBSCRIPTION, INSTALLMENT, ADJUSTMENT] }
+        subscriptionId: { type: [string, "null"], format: uuid }
+        expenseId: { type: [string, "null"], format: uuid }
+        installmentNumber: { type: [integer, "null"] }
+        installmentTotal: { type: [integer, "null"] }
+        chargeDate: { $ref: "#/components/schemas/DateOnly" }
+        description: { type: string }
+        amountCents: { type: integer, description: "Centavos; negativo = crédito (ajuste)." }
+        categoryId: { type: [string, "null"], format: uuid }
+
+    DataExport:
+      type: object
+      required: [exportedAt, schemaVersion, profile, cards, subscriptions, invoices, charges, payments]
+      properties:
+        exportedAt: { type: string, format: date-time }
+        schemaVersion: { type: integer, const: 1 }
+        profile:
+          type: object
+          required: [email, timezone, currency]
+          properties:
+            email: { type: string, format: email }
+            name: { type: string }
+            timezone: { type: string }
+            currency: { type: string }
+            createdAt: { type: string, format: date-time }
+        consents:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string, enum: [TERMS, PRIVACY, MARKETING] }
+              version: { type: string }
+              acceptedAt: { type: string, format: date-time }
+              revokedAt: { type: [string, "null"], format: date-time }
+        cards: { type: array, items: { $ref: "#/components/schemas/ExportCard" } }
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              color: { type: string }
+              icon: { type: string }
+        subscriptions: { type: array, items: { $ref: "#/components/schemas/ExportSubscription" } }
+        subscriptionPriceHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              subscriptionId: { type: string, format: uuid }
+              amountCents: { $ref: "#/components/schemas/Cents" }
+              effectiveFrom: { $ref: "#/components/schemas/DateOnly" }
+        expenses:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              cardId: { type: string, format: uuid }
+              description: { type: string }
+              totalCents: { $ref: "#/components/schemas/Cents" }
+              installments: { type: integer }
+              purchaseDate: { $ref: "#/components/schemas/DateOnly" }
+        invoices: { type: array, items: { $ref: "#/components/schemas/ExportInvoice" } }
+        charges: { type: array, items: { $ref: "#/components/schemas/ExportCharge" } }
+        payments:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              invoiceId: { type: string, format: uuid }
+              amountCents: { $ref: "#/components/schemas/Cents" }
+              paidOn: { $ref: "#/components/schemas/DateOnly" }
+        notificationPreferences: { type: object, additionalProperties: true }
+        notifications: { type: array, items: { type: object, additionalProperties: true } }

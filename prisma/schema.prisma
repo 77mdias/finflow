@@ -1,0 +1,494 @@
+// FinFlow — schema de banco de dados (PostgreSQL 16)
+// Documentação: docs/DATABASE.md
+//
+// Convenções:
+// - Modelos em PascalCase singular; tabelas em snake_case plural (@@map).
+// - Colunas em snake_case (@map).
+// - Dinheiro: BigInt em centavos (*_cents). Nunca Float/Decimal.
+// - Datas de negócio: @db.Date (sem hora). Timestamps técnicos: @db.Timestamptz(3).
+// - Toda tabela de dados do usuário possui user_id (isolamento multi-tenant, SRS R-04).
+// - CHECK constraints e índices parciais que o Prisma não expressa ficam em
+//   prisma/sql/constraints.sql e são anexados à migração inicial (ver DATABASE.md §6).
+
+// Prisma 7: URLs de conexão ficam em prisma.config.ts (Migrate) e no driver
+// adapter passado ao PrismaClient em runtime (src/shared/infrastructure/db.ts).
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum CardBrand {
+  VISA
+  MASTERCARD
+  ELO
+  AMEX
+  HIPERCARD
+  OTHER
+}
+
+enum BillingCycle {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAUSED
+  CANCELED
+}
+
+enum InvoiceStatus {
+  OPEN
+  CLOSED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+}
+
+enum ChargeSource {
+  SUBSCRIPTION
+  INSTALLMENT
+  ADJUSTMENT
+}
+
+enum NotificationType {
+  INVOICE_DUE
+  INVOICE_OVERDUE
+  SUBSCRIPTION_CHARGE
+  TRIAL_ENDING
+  DAILY_DIGEST
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum ConsentType {
+  TERMS
+  PRIVACY
+  MARKETING
+}
+
+enum JobName {
+  DAILY
+  REMINDERS
+  PURGE
+  BACKUP
+}
+
+enum JobStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Identidade e autenticação (compatível com o adapter Prisma do Better Auth)
+// Nomes de modelos/campos seguem o schema do Better Auth; tabelas e colunas
+// são renomeadas via @@map/@map, o que é transparente para o adapter.
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id                    String    @id @default(uuid()) @db.Uuid
+  name                  String    @default("") @db.VarChar(80)
+  email                 String    @unique @db.VarChar(254)
+  emailVerified         Boolean   @default(false) @map("email_verified")
+  image                 String?   @db.VarChar(500)
+  timezone              String    @default("America/Sao_Paulo") @db.VarChar(64)
+  currency              String    @default("BRL") @db.Char(3)
+  locale                String    @default("pt-BR") @db.VarChar(10)
+  plan                  Plan      @default(FREE)
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at") @db.Timestamptz(3)
+  emailSuppressedAt     DateTime? @map("email_suppressed_at") @db.Timestamptz(3)
+  deletedAt             DateTime? @map("deleted_at") @db.Timestamptz(3)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  accounts               Account[]
+  sessions               Session[]
+  cards                  Card[]
+  categories             Category[]
+  subscriptions          Subscription[]
+  expenses               Expense[]
+  invoices               Invoice[]
+  charges                Charge[]
+  payments               Payment[]
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  consents               Consent[]
+
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address") @db.VarChar(64)
+  userAgent String?  @map("user_agent") @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid()) @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  accountId             String    @map("account_id") @db.VarChar(255) // id no provedor (ex.: sub do Google)
+  providerId            String    @map("provider_id") @db.VarChar(64) // "google"
+  accessToken           String?   @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  idToken               String?   @map("id_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?   @db.Text
+  password              String?   @db.Text // não utilizado (sem login por senha)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(uuid()) @db.Uuid
+  identifier String   @db.VarChar(254) // e-mail (magic link)
+  value      String   @db.VarChar(255) // token
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+model Consent {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String      @map("user_id") @db.Uuid
+  type       ConsentType
+  version    String      @db.VarChar(20)
+  acceptedAt DateTime    @default(now()) @map("accepted_at") @db.Timestamptz(3)
+  revokedAt  DateTime?   @map("revoked_at") @db.Timestamptz(3)
+  ipHash     String?     @map("ip_hash") @db.Char(64)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("consents")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Domínio: cartões, categorias, assinaturas, despesas
+// ─────────────────────────────────────────────────────────────
+
+model Card {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  nickname   String    @db.VarChar(40)
+  issuer     String?   @db.VarChar(60)
+  brand      CardBrand @default(OTHER)
+  last4      String?   @db.Char(4)
+  color      String    @default("violet") @db.VarChar(20)
+  limitCents BigInt?   @map("limit_cents")
+  closingDay Int       @map("closing_day") @db.SmallInt
+  dueDay     Int       @map("due_day") @db.SmallInt
+  isDefault  Boolean   @default(false) @map("is_default")
+  sortOrder  Int       @default(0) @map("sort_order")
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  expenses      Expense[]
+  invoices      Invoice[]
+  charges       Charge[]
+
+  @@index([userId, archivedAt])
+  @@map("cards")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(40)
+  color     String   @db.VarChar(20)
+  icon      String   @db.VarChar(40)
+  isSystem  Boolean  @default(false) @map("is_system")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  expenses      Expense[]
+  charges       Charge[]
+
+  @@unique([userId, name])
+  @@map("categories")
+}
+
+model Subscription {
+  id               String             @id @default(uuid()) @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
+  cardId           String             @map("card_id") @db.Uuid
+  categoryId       String?            @map("category_id") @db.Uuid
+  name             String             @db.VarChar(80)
+  amountCents      BigInt             @map("amount_cents")
+  currency         String             @default("BRL") @db.Char(3)
+  cycle            BillingCycle       @default(MONTHLY)
+  billingAnchorDay Int                @map("billing_anchor_day") @db.SmallInt
+  nextChargeDate   DateTime           @map("next_charge_date") @db.Date
+  status           SubscriptionStatus @default(ACTIVE)
+  trialEndsOn      DateTime?          @map("trial_ends_on") @db.Date
+  pausedAt         DateTime?          @map("paused_at") @db.Timestamptz(3)
+  canceledOn       DateTime?          @map("canceled_on") @db.Date
+  manageUrl        String?            @map("manage_url") @db.VarChar(500)
+  catalogSlug      String?            @map("catalog_slug") @db.VarChar(60)
+  notes            String?            @db.Text
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user         User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card         Card                       @relation(fields: [cardId], references: [id], onDelete: NoAction)
+  category     Category?                  @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+  priceHistory SubscriptionPriceHistory[]
+  charges      Charge[]
+
+  @@index([userId, status])
+  @@index([status, nextChargeDate])
+  @@index([status, trialEndsOn])
+  @@index([cardId])
+  @@map("subscriptions")
+}
+
+model SubscriptionPriceHistory {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @map("subscription_id") @db.Uuid
+  amountCents    BigInt   @map("amount_cents")
+  effectiveFrom  DateTime @map("effective_from") @db.Date
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, effectiveFrom])
+  @@map("subscription_price_history")
+}
+
+model Expense {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  cardId       String   @map("card_id") @db.Uuid
+  categoryId   String?  @map("category_id") @db.Uuid
+  description  String   @db.VarChar(120)
+  totalCents   BigInt   @map("total_cents")
+  installments Int      @default(1) @db.SmallInt
+  purchaseDate DateTime @map("purchase_date") @db.Date
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card     Card      @relation(fields: [cardId], references: [id], onDelete: NoAction)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+  charges  Charge[]
+
+  @@index([userId, purchaseDate])
+  @@index([cardId])
+  @@map("expenses")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Domínio: faturas, cobranças, pagamentos
+// ─────────────────────────────────────────────────────────────
+
+model Invoice {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  cardId          String        @map("card_id") @db.Uuid
+  referenceMonth  String        @map("reference_month") @db.Char(7) // YYYY-MM do vencimento
+  periodStart     DateTime      @map("period_start") @db.Date
+  closingDate     DateTime      @map("closing_date") @db.Date
+  dueDate         DateTime      @map("due_date") @db.Date
+  totalCents      BigInt        @default(0) @map("total_cents") // cache de Σ charges (RN-16)
+  paidCents       BigInt        @default(0) @map("paid_cents") // cache de Σ payments
+  status          InvoiceStatus @default(OPEN)
+  datesOverridden Boolean       @default(false) @map("dates_overridden")
+  closedAt        DateTime?     @map("closed_at") @db.Timestamptz(3)
+  paidAt          DateTime?     @map("paid_at") @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card     Card      @relation(fields: [cardId], references: [id], onDelete: NoAction)
+  charges  Charge[]
+  payments Payment[]
+
+  @@unique([cardId, referenceMonth])
+  @@index([userId, dueDate])
+  @@index([status, closingDate])
+  @@index([status, dueDate])
+  @@map("invoices")
+}
+
+model Charge {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @map("user_id") @db.Uuid
+  cardId            String       @map("card_id") @db.Uuid
+  invoiceId         String       @map("invoice_id") @db.Uuid
+  sourceType        ChargeSource @map("source_type")
+  subscriptionId    String?      @map("subscription_id") @db.Uuid
+  expenseId         String?      @map("expense_id") @db.Uuid
+  installmentNumber Int?         @map("installment_number") @db.SmallInt
+  installmentTotal  Int?         @map("installment_total") @db.SmallInt
+  chargeDate        DateTime     @map("charge_date") @db.Date
+  description       String       @db.VarChar(160)
+  amountCents       BigInt       @map("amount_cents") // negativo = crédito/estorno (ADJUSTMENT)
+  categoryId        String?      @map("category_id") @db.Uuid
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card         Card          @relation(fields: [cardId], references: [id], onDelete: NoAction)
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: NoAction)
+  expense      Expense?      @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: NoAction)
+
+  // NULLs são distintos em UNIQUE no Postgres: as restrições só valem
+  // para cobranças da respectiva origem.
+  @@unique([subscriptionId, chargeDate]) // idempotência da materialização (RN-11)
+  @@unique([expenseId, installmentNumber]) // uma linha por parcela (RN-10)
+  @@index([invoiceId])
+  @@index([userId, chargeDate])
+  @@index([cardId, chargeDate])
+  @@map("charges")
+}
+
+model Payment {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  amountCents BigInt   @map("amount_cents")
+  paidOn      DateTime @map("paid_on") @db.Date
+  note        String?  @db.VarChar(200)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([userId, paidOn])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notificações
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id                String              @id @default(uuid()) @db.Uuid
+  userId            String              @map("user_id") @db.Uuid
+  type              NotificationType
+  channel           NotificationChannel
+  entityId          String              @map("entity_id") @db.Uuid // DAILY_DIGEST usa o próprio user_id
+  targetDate        DateTime            @map("target_date") @db.Date
+  status            NotificationStatus  @default(PENDING)
+  title             String              @db.VarChar(160)
+  body              String?             @db.Text
+  payload           Json?
+  attempts          Int                 @default(0) @db.SmallInt
+  lastError         String?             @map("last_error") @db.Text
+  providerMessageId String?             @map("provider_message_id") @db.VarChar(100)
+  sentAt            DateTime?           @map("sent_at") @db.Timestamptz(3)
+  readAt            DateTime?           @map("read_at") @db.Timestamptz(3)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, entityId, targetDate, channel]) // idempotência (RN-17)
+  @@index([userId, channel, readAt])
+  @@index([status, attempts])
+  @@index([providerMessageId])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId                 String   @id @map("user_id") @db.Uuid
+  emailEnabled           Boolean  @default(true) @map("email_enabled")
+  inAppEnabled           Boolean  @default(true) @map("in_app_enabled")
+  invoiceDueDaysBefore   Int      @default(3) @map("invoice_due_days_before") @db.SmallInt
+  subscriptionDaysBefore Int?     @default(1) @map("subscription_days_before") @db.SmallInt // null = desativado
+  subscriptionMinCents   BigInt   @default(0) @map("subscription_min_cents")
+  trialReminders         Boolean  @default(true) @map("trial_reminders")
+  overdueAlerts          Boolean  @default(true) @map("overdue_alerts")
+  dailyDigest            Boolean  @default(false) @map("daily_digest")
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Operação
+// ─────────────────────────────────────────────────────────────
+
+model JobRun {
+  id         String    @id @default(uuid()) @db.Uuid
+  job        JobName
+  status     JobStatus @default(RUNNING)
+  startedAt  DateTime  @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz(3)
+  stats      Json?
+  error      String?   @db.Text
+
+  @@index([job, startedAt])
+  @@map("job_runs")
+}
+
+model WebhookEvent {
+  id         String   @id @db.VarChar(100) // id do evento no provedor (ex.: svix-id)
+  provider   String   @db.VarChar(32)
+  type       String   @db.VarChar(64)
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  @@index([provider, receivedAt])
+  @@map("webhook_events")
+}

@@ -4,7 +4,7 @@
 |---|---|
 | Versão do documento | 1.0 |
 | Data | 2026-11-04 |
-| Documentos relacionados | [PRD](PRD.md) · [SRS](SRS.md) · [Mapa de Fluxo](FLOW_MAP.md) |
+| Documentos relacionados | [PRD](PRD.md) · [SRS](SRS.md) · [Mapa de Fluxo](FLOW_MAP.md) · [Arquitetura de Software](SOFTWARE_ARCHITECTURE.md) · [Banco de Dados](DATABASE.md) · [API](API_SPEC.md) · [Integrações](INTEGRATIONS.md) |
 
 ---
 
@@ -38,16 +38,17 @@ Alternativas consideradas:
 | Camada | Tecnologia | Justificativa |
 |---|---|---|
 | Linguagem | **TypeScript 5 (strict)** | Tipos compartilhados de ponta a ponta |
-| Framework web | **Next.js 15 (App Router)**, React 19 | RSC, Server Actions, rotas, cache, middleware |
+| Runtime | **Node.js 24 LTS** | LTS ativo, suportado pela Vercel |
+| Framework web | **Next.js 16 (App Router)**, React 19 | RSC, Server Actions, Cache Components (`"use cache"`), `proxy.ts`, Turbopack |
 | UI | **Tailwind CSS 4** + **shadcn/ui** (Radix) | Componentes acessíveis, customizáveis, sem lock-in |
 | Gráficos | **Recharts** | Simples, responsivo, suficiente para rosca/barras/linha |
 | Formulários | **React Hook Form** + **Zod** | Mesmo schema valida cliente e servidor |
 | Datas | **date-fns** + **date-fns-tz** (ou `Temporal` quando estável) | Aritmética de datas sem horário, fusos |
 | Dinheiro | Inteiros em centavos + helper `Money` próprio; `Intl.NumberFormat` para exibição | Sem erros de ponto flutuante |
-| ORM | **Prisma** (Prisma Migrate) | Schema declarativo, migrações, tipos gerados |
+| ORM | **Prisma 7** (`prisma-client` + driver adapter `@prisma/adapter-neon`; Prisma Migrate) | Schema declarativo, migrações, tipos gerados; cliente sem engine binária |
 | Banco | **PostgreSQL 16** (Neon) | Relacional, transações, constraints, índices parciais |
-| Autenticação | **Auth.js v5** (Prisma adapter) — magic link + Google | Sem senha para gerenciar; sessão em banco |
-| E-mail | **Resend** + **React Email** | Templates em JSX, free tier 3k/mês |
+| Autenticação | **Better Auth** (adapter Prisma, plugins `magicLink` e `oAuthProxy`) — magic link + Google | Sem senha para gerenciar; sessão em banco; projeto ativo (o Auth.js passou a ser mantido pelo time do Better Auth, em modo manutenção) |
+| E-mail | **Resend** + **React Email** | Templates em JSX; free tier 3k/mês e 100/dia |
 | Jobs agendados | **Vercel Cron** → Route Handlers idempotentes | Zero infra extra; trocável por qualquer cron HTTP |
 | Rate limiting | **Upstash Redis** (`@upstash/ratelimit`) | Serverless, free tier |
 | Observabilidade | **Sentry** (erros + performance), **Vercel Analytics**, logs JSON (`pino`) | Visibilidade com custo zero no início |
@@ -141,8 +142,9 @@ finflow/
 │  │  │  └─ settings/
 │  │  ├─ onboarding/
 │  │  └─ api/
-│  │     ├─ auth/[...nextauth]/
+│  │     ├─ auth/[...all]/          # Better Auth
 │  │     ├─ cron/{daily,reminders,purge}/
+│  │     ├─ webhooks/resend/
 │  │     ├─ export/  unsubscribe/  health/
 │  ├─ modules/                   # um diretório por contexto de domínio
 │  │  ├─ cards/
@@ -161,8 +163,9 @@ finflow/
 │  │  ├─ infrastructure/         # prisma client, logger, mailer, clock, ratelimit
 │  │  └─ ui/                     # design system (shadcn), layout, formatadores
 │  ├─ emails/                    # templates React Email
-│  ├─ lib/auth.ts                # configuração Auth.js
-│  └─ middleware.ts              # proteção de rotas, headers de segurança
+│  ├─ lib/auth.ts                # configuração Better Auth (servidor) + auth-client.ts
+│  ├─ generated/prisma/          # Prisma Client gerado (não versionado)
+│  └─ proxy.ts                   # Next.js 16 (antigo middleware): redirect otimista + headers
 ├─ tests/
 │  ├─ e2e/                       # Playwright
 │  └─ fixtures/
@@ -173,12 +176,14 @@ finflow/
 
 ## 5. Componentes de domínio críticos
 
+> Implementação de referência, testada, em [SOFTWARE_ARCHITECTURE.md §4.2](SOFTWARE_ARCHITECTURE.md#42-implementação-de-referência-das-regras-de-ciclo).
+
 ### 5.1 `BillingCycle` (módulo `invoices/domain`)
 Funções puras:
 ```ts
 closingDateFor(year, month, closingDay): DateOnly          // RN-02
 dueDateFor(closingDate, closingDay, dueDay): DateOnly       // RN-03
-invoiceFor(chargeDate, card): { referenceMonth, periodStart, closingDate, dueDate } // RN-05, RN-06
+invoiceFor(chargeDate, card, offset = 0): { referenceMonth, periodStart, closingDate, dueDate } // RN-05, RN-06
 ```
 
 ### 5.2 `RecurrenceEngine` (módulo `subscriptions/domain`)
@@ -189,7 +194,7 @@ monthlyEquivalent(amount, cycle): Money                                // RN-12
 
 ### 5.3 `InstallmentSplitter` (módulo `expenses/domain`)
 ```ts
-split(total: Money, n: number, purchaseDate: DateOnly): { number, date, amount }[]  // RN-10
+splitInstallments(total: bigint, n: number, purchaseDate: DateOnly, card): { number, date, invoice, amountCents }[]  // RN-10
 ```
 
 ### 5.4 `InvoiceStateMachine`
@@ -258,8 +263,8 @@ flowchart LR
 
     subgraph Vercel
         CDN[Edge Network / CDN<br/>assets estáticos]
-        MW[Middleware<br/>auth + headers]
-        FN[Serverless Functions<br/>Node 22 · região gru1]
+        MW[proxy.ts<br/>redirect + headers]
+        FN[Vercel Functions<br/>Node 24 · região gru1]
         CR[Vercel Cron]
     end
 
@@ -269,7 +274,7 @@ flowchart LR
     end
 
     CDN --> MW --> FN
-    CR -->|POST /api/cron/*| FN
+    CR -->|GET /api/cron/* + Bearer| FN
     FN -->|pooled connection| PG
     FN --> UP[(Upstash Redis<br/>rate limit)]
     FN --> RS[Resend<br/>e-mail]
@@ -289,7 +294,7 @@ flowchart LR
 |---|---|---|---|---|
 | Vercel | Hosting, funções, cron, CDN | Hobby → Pro | US$ 0 | US$ 20/mês (Pro; necessário para uso comercial) |
 | Neon | PostgreSQL serverless, branching | Free (0,5 GB) | US$ 0 | ~US$ 19/mês (Launch) |
-| Resend | E-mail transacional | Free (3k/mês) | US$ 0 | US$ 20/mês (50k) |
+| Resend | E-mail transacional | Free (3k/mês, 100/dia) | US$ 0 | US$ 20/mês (50k) — necessário já no beta aberto |
 | Upstash Redis | Rate limit | Free | US$ 0 | ~US$ 0–10 |
 | Sentry | Erros, performance, cron monitor | Developer | US$ 0 | US$ 26/mês (Team) |
 | Cloudflare R2 | Backups lógicos | Free (10 GB) | US$ 0 | ~US$ 0 |
@@ -315,14 +320,17 @@ flowchart LR
 |---|---|
 | `DATABASE_URL` | Conexão pooled (PgBouncer do Neon) para a aplicação |
 | `DIRECT_URL` | Conexão direta para migrações |
-| `AUTH_SECRET` | Segredo do Auth.js |
-| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | OAuth Google |
+| `BETTER_AUTH_SECRET` | Segredo do Better Auth (assinatura de cookies/tokens) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth Google |
 | `RESEND_API_KEY` / `EMAIL_FROM` | E-mail |
+| `RESEND_WEBHOOK_SECRET` | Verificação dos webhooks (Svix) |
 | `CRON_SECRET` | Autenticação dos endpoints de cron |
 | `UNSUBSCRIBE_SECRET` | Assinatura HMAC dos links de descadastro |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Rate limit |
 | `SENTRY_DSN` / `SENTRY_AUTH_TOKEN` | Observabilidade |
 | `NEXT_PUBLIC_APP_URL` | URL base |
+
+> Inventário completo de segredos, onde ficam e política de rotação: [INTEGRATIONS.md §10](INTEGRATIONS.md#10-inventário-de-segredos).
 
 ## 9. CI/CD
 
@@ -349,11 +357,11 @@ flowchart LR
 
 | Tema | Medida |
 |---|---|
-| Autenticação | Auth.js, sessão em banco, cookies `HttpOnly/Secure/SameSite=Lax`, magic link de uso único (15 min) |
+| Autenticação | Better Auth, sessão em banco, cookies `HttpOnly/Secure/SameSite=Lax`, magic link de uso único (15 min) |
 | Autorização | Todo repositório recebe `userId` obrigatório na assinatura do método; não existe `findById(id)` sem `userId`. Testes de autorização por action |
 | Validação | Zod em toda Server Action e Route Handler; limites de tamanho de strings |
 | CSRF | Server Actions validam `Origin`; Route Handlers de cron usam Bearer secret |
-| Headers | CSP com nonce, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` (via middleware) |
+| Headers | CSP com nonce, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` (via `proxy.ts` / `next.config.ts`) |
 | Rate limit | Upstash: login, actions, export |
 | Segredos | Apenas em env vars da Vercel/GitHub; rotação documentada; `gitleaks` no CI |
 | Dependências | Dependabot + `pnpm audit` no CI |
@@ -380,7 +388,7 @@ flowchart LR
 | ADR-003 | Dinheiro como inteiro em centavos + moeda | Aceita |
 | ADR-004 | Datas de negócio como `DATE` sem hora, interpretadas no fuso do usuário | Aceita |
 | ADR-005 | "Materializar passado, projetar futuro" para assinaturas | Aceita |
-| ADR-006 | Autenticação sem senha (magic link + Google) via Auth.js | Aceita |
+| ADR-006 | Autenticação sem senha (magic link + Google) via Better Auth | Aceita (revisada: Auth.js → Better Auth) |
 | ADR-007 | Jobs via cron HTTP idempotente em vez de worker dedicado no MVP | Aceita (revisar em 10k usuários) |
 | ADR-008 | Domínio puro isolado com regra de dependência imposta por lint | Aceita |
 | ADR-009 | Nenhum dado real de cartão — fora de escopo PCI-DSS | Aceita |
