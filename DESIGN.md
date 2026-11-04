@@ -218,15 +218,56 @@ No modo escuro, sombras perdem efeito: usar `--surface` mais claro + `--border-s
 
 ### 4.4 Movimento
 
-| Token           | Valor                            | Uso                                   |
-| --------------- | -------------------------------- | ------------------------------------- |
-| `duration-fast` | 120 ms                           | Hover, pressionado                    |
-| `duration-base` | 200 ms                           | Abrir menus, trocar abas              |
-| `duration-slow` | 320 ms                           | Sheets, diálogos, entrada de gráficos |
-| `ease-out`      | `cubic-bezier(0.22, 1, 0.36, 1)` | Entradas                              |
-| `ease-in-out`   | `cubic-bezier(0.65, 0, 0.35, 1)` | Transições de layout                  |
+Movimento **curto, suave e com propósito**: confirma uma ação, mostra de onde algo veio ou revela conteúdo — nunca decora em loop. Valores calibrados a partir da análise da referência (CSS e configurações de animação da captura de aave.com, ver [VISUAL_BRIEF §3](docs/VISUAL_BRIEF.md#3-análise-da-referência-aavecom)), adaptados ao FinFlow.
 
-Números animam por contagem (≤ 600 ms) só na primeira renderização. Com `prefers-reduced-motion`, tudo vira troca instantânea.
+**Durações**
+
+| Token               | Valor  | Uso                                                                 |
+| ------------------- | ------ | ------------------------------------------------------------------- |
+| `duration-instant`  | 100 ms | Pressionar (escala), saída de menus, troca de item selecionado      |
+| `duration-fast`     | 150 ms | Cor e fundo em hover/foco (o mais comum)                            |
+| `duration-base`     | 200 ms | Sombra, transform em hover, abrir popover/menu                      |
+| `duration-moderate` | 350 ms | Mola padrão: abas, segmented, sheets, acordeões, mudanças de layout |
+| `duration-slow`     | 500 ms | Revelar seção ao rolar, entrada de gráficos                         |
+| `duration-slower`   | 750 ms | Entrada do hero da landing, contagem de valores                     |
+
+**Curvas**
+
+| Token            | Valor                               | Uso                                                               |
+| ---------------- | ----------------------------------- | ----------------------------------------------------------------- |
+| `ease-out-expo`  | `cubic-bezier(0.19, 1, 0.22, 1)`    | **Entradas** (revelar, hero, gráficos) — desacelera longo e suave |
+| `ease-out`       | `cubic-bezier(0.22, 1, 0.36, 1)`    | Hover de transform, popovers                                      |
+| `ease-in-out`    | `cubic-bezier(0.65, 0, 0.35, 1)`    | Movimento entre dois estados visíveis (layout)                    |
+| `ease-overshoot` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Só confirmações pequenas (check de "pago", badge novo)            |
+| `linear`         | `linear`                            | Spinners e skeleton                                               |
+
+**Molas** (biblioteca [Motion](https://motion.dev), componentes cliente)
+
+| Preset           | Configuração                                            | Uso                                           |
+| ---------------- | ------------------------------------------------------- | --------------------------------------------- |
+| `spring.default` | `{ type: "spring", bounce: 0, duration: 0.35 }`         | Abas, segmented, acordeão, sheet, reordenação |
+| `spring.snappy`  | `{ type: "spring", bounce: 0.3, visualDuration: 0.15 }` | Toggle, checkbox, pressionar o FAB            |
+| `spring.gentle`  | `{ type: "spring", bounce: 0, duration: 0.75 }`         | Hero e blocos grandes da landing              |
+
+**Padrões**
+
+| Padrão                                     | Especificação                                                                                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hover/foco                                 | `background-color`/`color` 150 ms; `box-shadow`/`transform` 200 ms `ease-out`                                                                                                               |
+| Pressionar                                 | `scale(0.98)` em 100 ms; volta com `spring.snappy`                                                                                                                                          |
+| Revelar ao rolar                           | `opacity 0→1` + `translateY(10px→0)`, 500 ms `ease-out-expo`, dispara quando **30%** do elemento entra na tela, **uma vez**; filhos escalonados em **50 ms** (máx. 6 — o resto entra junto) |
+| Hero (landing)                             | `opacity 0→1` + `translateY(10%→0)` + `scale(0.975→1)`, 600–750 ms `ease-out-expo`                                                                                                          |
+| Popover/menu                               | Entrada `scale(0.96→1)` + `opacity`, 150 ms `ease-out`, origem no gatilho; saída só `opacity` em 100 ms                                                                                     |
+| Indicador ativo (abas, segmented, sidebar) | Elemento compartilhado que desliza entre itens (`layoutId`), `spring.default`                                                                                                               |
+| Sheet / diálogo                            | Sheet sobe do rodapé com `spring.default`; diálogo `scale(0.96→1)` + `opacity` 200 ms; overlay `opacity` 200 ms                                                                             |
+| Gráficos                                   | Barras crescem de baixo (`scaleY 0→1`, origem na base) 500 ms `ease-out-expo`, escalonadas em 40 ms; troca de período anima só as alturas (350 ms)                                          |
+| Valores (`MoneyDisplay`)                   | Contagem até o valor em 750 ms `ease-out-expo` **só na primeira renderização** do dia; mudanças depois disso trocam sem animação para não sugerir "dinheiro se mexendo"                     |
+| Ponto "ao vivo"                            | Anel que expande (`scale 1→2.2`, `opacity .6→0`), 1,5 s `ease-out`, loop — **somente** em estado transitório (ex.: "sincronizando"), nunca permanente                                       |
+| Carregamento                               | Skeleton com brilho deslizante 1,5 s `linear`; spinner 1 s `linear`                                                                                                                         |
+
+**Movimento reduzido** (`prefers-reduced-motion: reduce`): sem deslocamento, escala, contagem nem loops; entradas viram só `opacity` em 150 ms (ou nenhuma); molas viram troca instantânea. Testar as telas principais com a preferência ligada.
+
+**Implementação:** micro-interações em CSS com os tokens da §5; revelar ao rolar, layout compartilhado e molas com `motion/react` (com `MotionConfig reducedMotion="user"`) em Client Components — nunca animar o carregamento inicial de dados de Server Components.
 
 ### 4.5 Breakpoints e largura
 
@@ -291,6 +332,44 @@ Números animam por contagem (≤ 600 ms) só na primeira renderização. Com `p
   --shadow-lg: 0 24px 48px rgb(33 29 38 / 0.12), 0 0 0 1px var(--border);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --animate-fade-up: fade-up 500ms var(--ease-out-expo) both;
+  --animate-pop-in: pop-in 150ms var(--ease-out) both;
+  --animate-ping-soft: ping-soft 1.5s ease-out infinite;
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes ping-soft {
+    from {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    75%,
+    to {
+      opacity: 0;
+      transform: scale(2.2);
+    }
+  }
 }
 
 :root {
@@ -329,6 +408,16 @@ Números animam por contagem (≤ 600 ms) só na primeira renderização. Com `p
   --tonal-fg: var(--color-iris-300);
   --ring: var(--color-iris-300);
   color-scheme: dark;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {

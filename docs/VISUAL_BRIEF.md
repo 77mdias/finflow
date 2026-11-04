@@ -4,7 +4,7 @@
 |---|---|
 | Versão | 1.0 |
 | Data | 2026-11-04 |
-| Referência | Captura de [aave.com](https://aave.com) em `aave.com/` (commit `428df40`) |
+| Referência | Captura de [aave.com](https://aave.com) analisada em 04/11/2026 (commit `428df40`; removida do repositório em seguida — conteúdo de terceiros) |
 | Sistema de design | [`DESIGN.md`](../DESIGN.md) (tokens, componentes, regras) |
 | Prancha | [`docs/design/visual-brief-board.html`](design/visual-brief-board.html) · imagem abaixo |
 
@@ -41,6 +41,7 @@ A captura foi renderizada (desktop 1440 px e mobile 390 px) e os estilos computa
 | Ritmo | Seções centradas, largura de conteúdo ~980 px, muito respiro; um bloco **escuro** (`#0F0F10`, raio 32) para contraste | — |
 | Dados | Saldo gigante com **centavos menores**; barras com gradiente lilás vertical; seletor de período em pílula (1W · 1M · 1Y · All · Future) | — |
 | Padrões | Stat tiles (ícone + número + legenda), carrossel de depoimentos, FAQ em acordeão, newsletter em card | — |
+| Movimento | Transições curtas de cor/fundo; entradas "sobe e aparece" ao rolar; molas sem quique; indicador que desliza entre abas; números com contagem; poucos loops (pulso "ao vivo", flutuação de ilustrações), todos com versão para movimento reduzido | Transições 150–200 ms; molas `bounce: 0, duration: .35`; entrada 500 ms `cubic-bezier(.19,1,.22,1)`; revelar com 25–50% visível; escalonamento 50 ms; 28 blocos `prefers-reduced-motion` |
 
 ### 3.1 O que levamos, adaptamos e descartamos
 
@@ -52,8 +53,9 @@ A captura foi renderizada (desktop 1440 px e mobile 390 px) e os estilos computa
 | Valor com centavos menores | `MoneyDisplay` com formato pt-BR (`R$ 9.847,31`) e `tabular-nums` | Linguagem de investimento/DeFi ("APY", "yield") |
 | Barras com gradiente + seletor de período | "Previsto" com **hachura + rótulo**, não só cor | Excesso de mockups de celular (o FinFlow é web responsivo) |
 | Bloco escuro de contraste | Usado na landing e no modo escuro do app | Banners de cookies/avisos sobre o conteúdo principal |
+| Durações curtas, curva ease-out-expo, molas sem quique, revelar ao rolar | Tokens e padrões no [DESIGN §4.4](../DESIGN.md#44-movimento); contagem de valores só na 1ª renderização | Loops decorativos permanentes (órbitas, flutuação, "batimento") e valores mudando a cada segundo |
 
-> ⚠️ **Licenciamento:** a pasta `aave.com/` versionada contém fontes proprietárias (`AaveReproVariable.woff2`, `AaveAguzzo.woff2`), imagens e textos da marca. Como o repositório é **público**, recomenda-se removê-la do Git (mantendo uma cópia local, fora do repositório) — ela serve só como inspiração e nenhum arquivo dela é usado pelo FinFlow.
+> ⚠️ **Licenciamento:** a captura continha fontes proprietárias (`AaveReproVariable.woff2`, `AaveAguzzo.woff2`), imagens e textos da marca. Ela serviu só como inspiração e **foi removida do repositório**; `aave.com/` está no `.gitignore` para cópias locais. Os arquivos continuam no **histórico do Git** (commit `428df40`) — removê-los de lá exige reescrever o histórico da `master`.
 
 ## 4. Direção visual
 
