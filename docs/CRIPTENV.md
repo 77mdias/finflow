@@ -24,7 +24,7 @@ sequenceDiagram
 
     D->>E: monta /run/secrets/{criptenv_api_key, criptenv_vault_password, criptenv_project}
     E->>E: exporta CRIPTENV_API_KEY / CRIPTENV_VAULT_PASSWORD / CRIPTENV_PROJECT
-    E->>C: exec criptenv run -e development -- pnpm db:deploy && pnpm dev
+    E->>C: exec criptenv run -e development -- pnpm db:generate && pnpm db:deploy && pnpm dev
     C->>API: GET ambientes + blobs cifrados (Authorization: API key somente leitura)
     API-->>C: blobs AES-256-GCM + vault_config (salt, parâmetros)
     C->>C: deriva a chave do ambiente com a senha do cofre e decifra EM MEMÓRIA

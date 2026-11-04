@@ -51,6 +51,8 @@ services:
       - .:/app
       - app_node_modules:/app/node_modules
       - app_next:/app/.next
+      # Prisma Client gerado (não versionado): volume próprio para não ser ocultado pelo bind mount
+      - app_prisma_client:/app/src/generated
     depends_on:
       db:
         condition: service_healthy
@@ -81,3 +83,4 @@ volumes:
   pgdata:
   app_node_modules:
   app_next:
+  app_prisma_client:

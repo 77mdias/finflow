@@ -37,5 +37,6 @@ COPY --chown=finflow:finflow --chmod=0755 docker/dev/entrypoint.sh /usr/local/bi
 
 EXPOSE 3000
 ENTRYPOINT ["finflow-entrypoint"]
-# Aplica migrações e sobe o servidor de desenvolvimento, ambos com os secrets do cofre.
-CMD ["sh", "-c", "pnpm db:deploy && exec pnpm dev --hostname 0.0.0.0"]
+# Regenera o Prisma Client (reflete mudanças no schema a cada start), aplica migrações
+# e sobe o servidor de desenvolvimento — tudo com os secrets do cofre.
+CMD ["sh", "-c", "pnpm db:generate && pnpm db:deploy && exec pnpm dev --hostname 0.0.0.0"]
