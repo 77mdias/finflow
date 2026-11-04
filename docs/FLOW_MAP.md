@@ -113,7 +113,7 @@ sequenceDiagram
     autonumber
     actor U as Usuário
     participant W as FinFlow (Web)
-    participant A as Auth.js
+    participant A as Better Auth
     participant E as Resend
     participant G as Google
 
@@ -245,8 +245,8 @@ flowchart TD
     B --> C{Válido?}
     C -->|Não| B
     C -->|Sim| D[InstallmentSplitter RN-10<br/>base = floor V/N · resto na 1ª]
-    D --> E[Para cada parcela k:<br/>data = compra + k−1 meses]
-    E --> F[BillingCycle.invoiceFor data, cartão<br/>RN-06]
+    D --> E[Para cada parcela k:<br/>data exibida = compra + k−1 meses]
+    E --> F[invoiceFor compra, cartão, offset k−1<br/>fatura da 1ª parcela + k−1 ciclos · RN-06/RN-10]
     F --> G[get-or-create fatura do ciclo]
     G --> H[Inserir charge k/N]
     H --> I{Mais parcelas?}

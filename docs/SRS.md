@@ -57,7 +57,7 @@ Aplicação web standalone (monólito modular Next.js) com banco PostgreSQL gere
 ### 2.3 Ambiente operacional
 - Navegadores: duas últimas versões de Chrome, Edge, Firefox, Safari (desktop e mobile).
 - Telas de 360 px de largura em diante.
-- Servidor: runtime Node.js 22 LTS (serverless).
+- Servidor: runtime Node.js 24 LTS (serverless).
 
 ### 2.4 Restrições de design e implementação
 - **R-01:** O sistema não deve coletar PAN, CVV, validade real ou credenciais bancárias.
@@ -68,7 +68,7 @@ Aplicação web standalone (monólito modular Next.js) com banco PostgreSQL gere
 
 ### 2.5 Premissas e dependências
 - Usuário possui e-mail válido.
-- Serviços externos: Neon (Postgres), Vercel (hosting/cron), Resend (e-mail), Google OAuth, Sentry.
+- Serviços externos: Neon (Postgres), Vercel (hosting/cron), Resend (e-mail), Google OAuth, Upstash (rate limit), Sentry, Cloudflare R2 (backups). Detalhes em [INTEGRATIONS.md](INTEGRATIONS.md).
 - MVP opera em moeda única por usuário (BRL padrão); campo `currency` já existe para v2.
 
 ---
@@ -229,7 +229,7 @@ Prioridade: **M** = Must (MVP), **S** = Should (MVP se houver tempo), **C** = Co
 
 **RN-10 — Parcelamento.** Despesa de valor `V` em `N` parcelas, data `d`:
 - Valor base: `floor(V / N)` centavos; o **resto** é somado à **1ª parcela**. Ex.: R$ 100,00 em 3x → 33,34 + 33,33 + 33,33.
-- Parcela 1 com data `d` (fatura pela RN-06); parcela `k` com data `d + (k−1) meses` (RN-02), garantindo uma parcela por fatura consecutiva.
+- Parcela 1 vai para a fatura de `d` (RN-06); a parcela `k` vai para a fatura **`k−1` ciclos depois** da 1ª — uma parcela por fatura consecutiva. A data exibida da parcela `k` é `d + (k−1) meses` (RN-02), mas **não** é usada para escolher a fatura (com fechamento dia 31 e compra dia 30, a data ajustada de fevereiro cairia no fechamento e pularia uma fatura).
 - Descrição da cobrança: `"<descrição> (k/N)"`.
 
 ### 4.4 Limite
@@ -411,7 +411,7 @@ erDiagram
     }
 ```
 
-> Tabelas de autenticação (`account`, `session`, `verification_token`) seguem o esquema padrão do adapter Prisma do Auth.js e não estão no diagrama.
+> Diagrama resumido. A modelagem completa (todas as tabelas, incluindo `user_id` denormalizado, autenticação do Better Auth, consentimentos, `job_runs` e `webhook_events`) está em [DATABASE.md](DATABASE.md), que prevalece em caso de divergência.
 
 ### 5.2 Restrições e índices principais
 
@@ -466,15 +466,16 @@ Mutations via **Server Actions** (tipadas, validadas com Zod). Leituras via **Re
 
 | Método | Rota | Uso | Auth |
 |---|---|---|---|
-| `GET/POST` | `/api/auth/*` | Auth.js | — |
-| `POST` | `/api/cron/daily` | Job diário (materializar, fechar, vencer, reconciliar) | `Authorization: Bearer CRON_SECRET` |
-| `POST` | `/api/cron/reminders` | Job horário de lembretes (janela RN-20) | `CRON_SECRET` |
-| `POST` | `/api/cron/purge` | Purge de contas excluídas | `CRON_SECRET` |
+| `GET/POST` | `/api/auth/*` | Better Auth (magic link, Google, sessão) | — |
+| `GET` | `/api/cron/daily` | Job diário (materializar, fechar, vencer, reconciliar) | `Authorization: Bearer CRON_SECRET` |
+| `GET` | `/api/cron/reminders` | Job de lembretes (janela RN-20) | `CRON_SECRET` |
+| `GET` | `/api/cron/purge` | Purge de contas excluídas e retenção | `CRON_SECRET` |
+| `POST` | `/api/webhooks/resend` | Eventos de e-mail (bounce, complaint) | Assinatura Svix |
 | `GET` | `/api/export` | Exportação LGPD (JSON) | Sessão |
-| `GET` | `/api/unsubscribe?token=` | Descadastro de lembretes | Token assinado |
+| `POST` | `/api/unsubscribe?token=` | Descadastro one-click (RFC 8058) | Token assinado |
 | `GET` | `/api/health` | Health check | — |
 
-Server Actions principais: `createCard`, `updateCard`, `archiveCard`, `deleteCard`, `createSubscription`, `updateSubscription`, `pauseSubscription`, `resumeSubscription`, `cancelSubscription`, `changeSubscriptionCard`, `createExpense`, `updateExpense`, `deleteExpense`, `createAdjustment`, `registerPayment`, `deletePayment`, `overrideInvoiceDates`, `upsertCategory`, `deleteCategory`, `updatePreferences`, `markNotificationRead`, `deleteAccount`.
+Especificação completa em [API_SPEC.md](API_SPEC.md) e [api/openapi.yaml](api/openapi.yaml). Server Actions principais: `createCard`, `updateCard`, `archiveCard`, `deleteCard`, `createSubscription`, `updateSubscription`, `pauseSubscription`, `resumeSubscription`, `cancelSubscription`, `changeSubscriptionCard`, `createExpense`, `updateExpense`, `deleteExpense`, `createAdjustment`, `registerPayment`, `deletePayment`, `overrideInvoiceDates`, `upsertCategory`, `deleteCategory`, `updatePreferences`, `markNotificationRead`, `deleteAccount`.
 
 ### 6.3 Interfaces de comunicação
 - HTTPS (TLS 1.2+) obrigatório; HSTS.
