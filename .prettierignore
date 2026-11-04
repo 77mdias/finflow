@@ -5,3 +5,6 @@ pnpm-lock.yaml
 src/generated
 prisma/migrations
 docs
+
+# Captura de site usada só como referência visual
+aave.com

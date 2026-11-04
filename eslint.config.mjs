@@ -5,7 +5,8 @@ import nextTs from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([".next/**", "coverage/**", "src/generated/**", "next-env.d.ts"]),
+  // aave.com/: captura de site usada só como referência visual (ver docs/VISUAL_BRIEF.md)
+  globalIgnores([".next/**", "coverage/**", "src/generated/**", "next-env.d.ts", "aave.com/**"]),
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
