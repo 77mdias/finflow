@@ -131,20 +131,20 @@ flowchart TB
 | Módulo | Responsabilidade | Tabelas que **possui** (escreve) | Depende de |
 |---|---|---|---|
 | `accounts` | Perfil, preferências gerais, onboarding, consentimentos, exportação e exclusão (LGPD), integração com Better Auth | `users`*, `consents` | `categories`, `notifications` (seed de defaults) |
-| `cards` | CRUD de cartões, arquivamento, cartão padrão, uso de limite | `cards` | `invoices` (recalcular datas RN-07) |
+| `cards` | CRUD de cartões, arquivamento, cartão padrão, uso de limite | `cards` | `invoices` (recalcular datas RN-07), `subscriptions` (mover/cancelar ao arquivar) |
 | `categories` | CRUD de categorias, defaults, realocação | `categories` | — |
-| `subscriptions` | CRUD, ciclo de vida (RN-13), histórico de preço, recorrência (RN-09), materialização (RN-11), custos equivalentes (RN-12) | `subscriptions`, `subscription_price_history` | `invoices` (lançar cobrança) |
+| `subscriptions` | CRUD, ciclo de vida (RN-13), histórico de preço, recorrência (RN-09), materialização (RN-11), custos equivalentes (RN-12) | `subscriptions`, `subscription_price_history` | `invoices` (lançar cobrança), `categories` |
 | `expenses` | Despesas, parcelamento (RN-10) | `expenses` | `invoices` (lançar parcelas) |
 | `invoices` | **Motor de faturas**: ciclo (RN-02..07), get-or-create, cobranças, ajustes, pagamentos, máquina de estados (RN-15), projeção, reconciliação | `invoices`, `charges`, `payments` | — (núcleo; não depende de outros módulos) |
 | `notifications` | Regras de lembrete, idempotência (RN-17), central in-app, preferências, envio de e-mail, descadastro | `notifications`, `notification_preferences` | `invoices`, `subscriptions` (somente leitura via query services) |
-| `dashboard` | Agregações de leitura (totais, categorias, projeção, próximos eventos) | — | `invoices`, `subscriptions`, `cards` |
-| `jobs` | Orquestra jobs em lotes, advisory lock, `job_runs` | `job_runs` | `subscriptions`, `invoices`, `notifications`, `accounts` |
+| `dashboard` | Modelos de leitura que combinam módulos: painel, **projeção** (`domain/projection.ts`), fatura com cobranças previstas, próximos eventos | — | `invoices`, `subscriptions`, `cards` |
+| `jobs` | Orquestra jobs em lotes, trava por índice único em `job_runs` | `job_runs` | `subscriptions`, `invoices`, `notifications`, `accounts` |
 
 \* `sessions`, `accounts`, `verifications` são escritas exclusivamente pelo Better Auth.
 
 ### 3.1 Regras entre módulos
 1. Um módulo **só escreve nas tabelas que possui**. `subscriptions` não faz `INSERT INTO charges`; chama `invoices.application.postCharge()`.
-2. Um módulo só importa outro pelo **arquivo público** `src/modules/<m>/index.ts` (nunca caminhos internos).
+2. Um módulo só importa outro pelo **arquivo público** `src/modules/<m>/index.ts` ou pelo seu `domain/` (vocabulário puro compartilhado, ex.: `billing-cycle`). Nunca `application/`, `infrastructure/` ou `ui/` de outro módulo.
 3. `invoices` é o **núcleo** e não importa nenhum outro módulo. Ciclos de dependência são proibidos.
 4. Leituras entre módulos usam *query services* expostos no `index.ts`.
 5. Regras aplicadas por `dependency-cruiser` no CI:
@@ -481,6 +481,8 @@ export async function unitOfWork<T>(fn: (tx: UnitOfWork) => Promise<T>): Promise
 }
 ```
 
+> **Implementação atual (MVP):** os casos de uso recebem o cliente transacional tipado do Prisma (`Tx`) e o usam diretamente — o Prisma Client funciona como a "porta" de persistência, e SQL bruto (`$queryRaw`) fica restrito a consultas específicas (limite usado, `FOR UPDATE` em pagamentos, reconciliação). Interfaces de repositório explícitas serão extraídas quando surgir um segundo adapter. O isolamento por `userId` continua obrigatório em toda consulta.
+
 **Regra de ouro de autorização:** toda assinatura de método de repositório recebe `userId` como **primeiro parâmetro obrigatório** e todo `WHERE` inclui `user_id`. Não existe `findById(id)`. Um recurso de outro usuário é indistinguível de um inexistente ⇒ `NOT_FOUND` (não vaza existência).
 
 ---
@@ -647,7 +649,7 @@ flowchart TB
 |---|---|
 | Correção financeira | Domínio puro testado por propriedades; centavos inteiros; constraints no banco espelhando invariantes; reconciliação diária de caches |
 | Segurança / isolamento (RNF-11) | `userId` obrigatório em repositórios; teste de authz por action; `NOT_FOUND` para recurso alheio |
-| Idempotência (RNF-21) | Chaves únicas naturais (`ON CONFLICT DO NOTHING`); status derivado por função total; advisory lock em jobs |
+| Idempotência (RNF-21) | Chaves únicas naturais (`ON CONFLICT DO NOTHING`); status derivado por função total; trava de jobs por índice único parcial |
 | Desempenho (RNF-01..03) | RSC + streaming; cache por usuário com tags; índices parciais; projeção em memória O(n) |
 | Manutenibilidade (RNF-40..43) | Módulos com API pública, regras de dependência no CI, ADRs |
 | Portabilidade (RNF-61) | Domínio e aplicação sem dependência de Vercel; jobs são HTTP; Prisma com driver adapter trocável |

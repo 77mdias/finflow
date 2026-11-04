@@ -237,6 +237,7 @@ erDiagram
         uuid user_id PK
         boolean email_enabled
         boolean in_app_enabled
+        boolean invoice_due_enabled
         smallint invoice_due_days_before "0–10, default 3"
         smallint subscription_days_before "nullable = off, default 1"
         bigint subscription_min_cents "default 0"
@@ -400,7 +401,7 @@ Valor numa data `d` = registro com maior `effective_from ≤ d`.
 |---|---|
 | `sessions`, `accounts`, `verifications` | Schema do **Better Auth** (sessões em banco, contas OAuth, tokens de magic link) |
 | `consents` | Registro LGPD de aceite de Termos/Privacidade com versão e hash do IP |
-| `notification_preferences` | 1:1 com `users`, criada no onboarding |
+| `notification_preferences` | 1:1 com `users`, criada no onboarding. `invoice_due_enabled` desliga lembretes de vencimento (alvo do descadastro de `INVOICE_DUE`) |
 | `job_runs` | Auditoria de execuções de jobs (RNF-52) |
 | `webhook_events` | Idempotência de webhooks recebidos (chave = id do evento do provedor) |
 
@@ -472,6 +473,7 @@ Definidas em [`prisma/sql/constraints.sql`](../prisma/sql/constraints.sql), anex
 | `invoices (user_id, due_date)` | Dashboard: faturas do mês, calendário |
 | `invoices_pending_close` (parcial `status='OPEN'`) | Job diário: fechar faturas |
 | `invoices_pending_due` (parcial `CLOSED/PARTIALLY_PAID`) | Job diário: marcar vencidas |
+| `job_runs_one_running_per_job` (único parcial `RUNNING`) | Trava contra execução concorrente do mesmo job |
 | `charges (invoice_id)` | Itens da fatura, reconciliação |
 | `charges (user_id, charge_date)` | Gasto por categoria/período |
 | `charges UNIQUE (subscription_id, charge_date)` | Idempotência da materialização (RN-11) |
@@ -645,24 +647,20 @@ HAVING i.total_cents <> COALESCE(SUM(c.amount_cents), 0);
 
 | Uso | Variável | Endpoint Neon | Observação |
 |---|---|---|---|
-| Aplicação (runtime serverless) | `DATABASE_URL` | **pooled** (`-pooler`, PgBouncer em modo transaction) | Via driver adapter `@prisma/adapter-neon` (WebSocket/HTTP) |
-| Migrações, seed, scripts | `DIRECT_URL` | **direto** | Lido em `prisma.config.ts`; DDL e advisory locks não funcionam via PgBouncer transaction mode |
-| Desenvolvimento local | ambos → `postgresql://finflow:finflow@localhost:5432/finflow` | Docker Compose | Adapter `@prisma/adapter-pg` |
+| Aplicação (runtime serverless) | `DATABASE_URL` | **pooled** (`-pooler`, PgBouncer em modo transaction) | Via driver adapter `@prisma/adapter-pg` (TCP), pool de até 5 conexões por instância |
+| Migrações, seed, scripts | `DIRECT_URL` | **direto** | Lido em `prisma.config.ts`; DDL não deve passar pelo PgBouncer em modo transaction |
+| Desenvolvimento local | ambos → `postgresql://finflow:finflow@localhost:5432/finflow` | Docker Compose | Mesmo adapter |
 
 ```ts
 // src/shared/infrastructure/db.ts
-import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { env } from "@/shared/config/env";
+import { PrismaClient } from "@/generated/prisma/client";
 
-const adapter = env.DATABASE_URL.includes("neon.tech")
-  ? new PrismaNeon({ connectionString: env.DATABASE_URL })
-  : new PrismaPg({ connectionString: env.DATABASE_URL });
-
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export function createPrismaClient(connectionString: string): PrismaClient {
+  // Neon (endpoint pooled) e Postgres local usam o mesmo driver `pg`.
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString, max: 5 }) });
+}
+// `prisma()` devolve um singleton (reaproveitado entre hot reloads em desenvolvimento).
 ```
 
 ### 8.2 Mapeamento de tipos
@@ -712,7 +710,7 @@ flowchart LR
 | Get-or-create de fatura | `INSERT … ON CONFLICT (card_id, reference_month) DO NOTHING` seguido de `SELECT` |
 | Materialização de assinatura | `ON CONFLICT (subscription_id, charge_date) DO NOTHING` + avanço de `next_charge_date` na mesma transação |
 | Lembretes | `INSERT … ON CONFLICT DO NOTHING RETURNING` antes do envio |
-| Job concorrente consigo mesmo | `pg_try_advisory_lock(hashtext('job:daily'))` na conexão direta; se não obtiver, encerra |
+| Job concorrente consigo mesmo | Índice único parcial `job_runs_one_running_per_job` (`WHERE status = 'RUNNING'`): a 2ª execução falha ao inserir em `job_runs` ⇒ `409`. Execuções `RUNNING` há mais de 30 min são liberadas. (Advisory locks de sessão não são confiáveis com pool de conexões.) |
 | Edição concorrente pelo usuário (2 abas) | *Optimistic concurrency*: Server Actions de edição enviam `updatedAt`; `UPDATE … WHERE id = $1 AND updated_at = $2` → 0 linhas ⇒ erro `CONFLICT` |
 
 Nível de isolamento: `READ COMMITTED` (padrão). As regras acima eliminam as anomalias relevantes sem exigir `SERIALIZABLE`.

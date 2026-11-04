@@ -1,0 +1,5 @@
+# Falsos positivos revisados. Formato: <commit>:<arquivo>:<regra>:<linha>
+# Valores fixos de teste (não são credenciais) no commit d369acb; substituídos por
+# segredos efêmeros gerados em tempo de execução em tests/support/setup-env.ts.
+d369acbc213e0e98d2391dd98e73caac6b3971ec:tests/support/setup-env.ts:generic-api-key:8
+d369acbc213e0e98d2391dd98e73caac6b3971ec:tests/support/setup-env.ts:generic-api-key:9

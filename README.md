@@ -4,33 +4,94 @@
 
 FinFlow é uma aplicação web para **controle pessoal de custos recorrentes**. O usuário cria **cartões virtuais personalizados** (representações dos seus cartões, nunca dados reais), associa a eles suas **assinaturas ativas** e **despesas avulsas/parceladas**, e o sistema calcula automaticamente as **faturas** de cada ciclo, alerta sobre vencimentos e mostra para onde o dinheiro está indo.
 
-## Documentação
-
-| Documento | Conteúdo |
-|---|---|
-| [`docs/PRD.md`](docs/PRD.md) | Product Requirements Document — visão, personas, escopo, métricas, roadmap |
-| [`docs/SRS.md`](docs/SRS.md) | Software Requirements Specification — requisitos funcionais, não funcionais, regras de negócio, modelo de dados |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Visão geral da arquitetura, stack, infraestrutura, custos, CI/CD e decisões (ADRs) |
-| [`docs/SOFTWARE_ARCHITECTURE.md`](docs/SOFTWARE_ARCHITECTURE.md) | Arquitetura de software: C4, módulos, camadas, modelo de domínio, preocupações transversais, frontend, testes |
-| [`docs/DATABASE.md`](docs/DATABASE.md) | Modelagem de dados: diagramas ER, dicionário de dados, constraints, índices, consultas, migrações, retenção |
-| [`docs/API_SPEC.md`](docs/API_SPEC.md) | Especificação de API: Server Actions, query services, DTOs, erros, rotas HTTP, REST v1 planejada |
-| [`docs/api/openapi.yaml`](docs/api/openapi.yaml) | Contrato OpenAPI 3.1 das rotas HTTP |
-| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) | Integrações externas: Google, Resend, Neon, Vercel, Upstash, Sentry, R2, GitHub Actions, segredos, LGPD |
-| [`docs/FLOW_MAP.md`](docs/FLOW_MAP.md) | Mapa de fluxos: navegação, jornadas do usuário, ciclo de vida de fatura/assinatura, jobs |
-
-## Stack (resumo)
-
-- **App:** Next.js 16 (App Router, Cache Components) + React 19 + TypeScript, Node.js 24 LTS
-- **UI:** Tailwind CSS + shadcn/ui + Recharts
-- **Dados:** PostgreSQL 16 (Neon) + Prisma 7
-- **Auth:** Better Auth (magic link por e-mail + Google OAuth)
-- **Jobs/cron:** Vercel Cron → rotas internas idempotentes
-- **E-mail:** Resend
-- **Hospedagem:** Vercel (app) + Neon (banco) — free tier no MVP
-- **Qualidade:** Vitest, Playwright, ESLint, Prettier, GitHub Actions
-
-Detalhes e justificativas em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
 ## Status
 
-📐 Fase de especificação. O schema do banco já está definido em [`prisma/schema.prisma`](prisma/schema.prisma) (+ [`prisma/sql/constraints.sql`](prisma/sql/constraints.sql)); ainda não há código de aplicação.
+🛠️ **Backend do MVP implementado** (casos de uso, jobs, API HTTP, autenticação) com testes e CI/CD.
+🎨 **Frontend**: apenas um placeholder — a interface será construída em uma próxima fase.
+
+## Stack
+
+- **App:** Next.js 16 (App Router) + React 19 + TypeScript 6, Node.js 24 LTS
+- **Dados:** PostgreSQL 16 (Neon em produção) + Prisma 7 (`@prisma/adapter-pg`)
+- **Auth:** Better Auth (magic link por e-mail + Google OAuth)
+- **E-mail:** Resend (produção) · Mailpit (local)
+- **Jobs:** Vercel Cron → rotas idempotentes `/api/cron/*`
+- **Qualidade:** Vitest (+ fast-check), ESLint, Prettier, dependency-cruiser, GitHub Actions
+
+## Rodando localmente
+
+Pré-requisitos: Node.js ≥ 22.12 (recomendado 24), pnpm 10 (`corepack enable`), Docker.
+
+```bash
+cp .env.example .env            # ajuste os segredos se quiser
+docker compose up -d            # Postgres 16 em :5432 e Mailpit em http://localhost:8025
+pnpm install                    # também gera o Prisma Client
+pnpm db:deploy                  # aplica as migrações
+pnpm db:seed                    # (opcional) usuário demo@finflow.local com dados de exemplo
+pnpm dev                        # http://localhost:3000
+```
+
+Para entrar, solicite um magic link (por enquanto via API, até o frontend existir) e abra o e-mail no Mailpit:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/sign-in/magic-link \
+  -H 'content-type: application/json' -H 'origin: http://localhost:3000' \
+  -d '{"email":"demo@finflow.local","callbackURL":"/dashboard"}'
+```
+
+Disparar um job manualmente (idempotente):
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/daily
+```
+
+## Scripts
+
+| Comando                                              | Descrição                                                              |
+| ---------------------------------------------------- | ---------------------------------------------------------------------- |
+| `pnpm dev` / `pnpm build` / `pnpm start`             | Next.js                                                                |
+| `pnpm test`                                          | Testes unitários (domínio puro)                                        |
+| `pnpm test:coverage`                                 | Unitários com cobertura mínima de 90% no domínio                       |
+| `pnpm test:int`                                      | Testes de integração contra Postgres real (recria `TEST_DATABASE_URL`) |
+| `pnpm lint` · `pnpm typecheck` · `pnpm format:check` | Qualidade                                                              |
+| `pnpm lint:deps`                                     | Regras de dependência entre camadas e módulos                          |
+| `pnpm db:migrate`                                    | Cria/aplica migração em desenvolvimento (`prisma migrate dev`)         |
+| `pnpm db:deploy`                                     | Aplica migrações pendentes (`prisma migrate deploy`)                   |
+| `pnpm db:seed`                                       | Dados de demonstração                                                  |
+| `pnpm db:check-migrations`                           | Confere migrações × `schema.prisma` (banco vazio em `DIRECT_URL`)      |
+
+## Estrutura
+
+```
+src/
+├─ app/api/              # Route Handlers: auth, cron, export, unsubscribe, webhooks, health
+├─ lib/                  # Better Auth (auth.ts) e sessão (requireUser)
+├─ modules/<módulo>/
+│  ├─ domain/            # regras puras (RN-*) — sem I/O, 100% testadas
+│  ├─ application/       # casos de uso, schemas Zod, queries
+│  ├─ ui/actions.ts      # Server Actions ("use server")
+│  └─ index.ts           # API pública do módulo
+├─ shared/               # domínio comum (DateOnly, Money, erros), infra (db, mailer, rate limit), action()
+prisma/                  # schema, migrações, constraints SQL e seed
+tests/integration/       # fluxos ponta a ponta contra Postgres
+```
+
+Módulos: `invoices` (núcleo: ciclo de fatura, cobranças, pagamentos), `cards`, `subscriptions`, `expenses`, `categories`, `notifications`, `accounts`, `dashboard`, `jobs`.
+
+## CI/CD
+
+- **CI** (`.github/workflows/ci.yml`, em todo PR e na `master`): lint, Prettier, typecheck, regras de dependência, testes unitários com cobertura, lint do OpenAPI, testes de integração (Postgres 16), verificação migrações × schema, build de produção e varredura de segredos (gitleaks).
+- **Deploy** (`.github/workflows/deploy.yml`): após o CI verde na `master` — `prisma migrate deploy` → build/deploy na Vercel → smoke test em `/api/health`. Requer os secrets `DIRECT_URL`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` no environment `production` (sem eles, o job é ignorado com aviso).
+
+## Documentação
+
+| Documento                                                                                 | Conteúdo                                                          |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [`docs/PRD.md`](docs/PRD.md)                                                              | Visão, personas, escopo, métricas, roadmap                        |
+| [`docs/SRS.md`](docs/SRS.md)                                                              | Requisitos funcionais e não funcionais, regras de negócio (RN-\*) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)                                            | Stack, infraestrutura, custos, CI/CD e ADRs                       |
+| [`docs/SOFTWARE_ARCHITECTURE.md`](docs/SOFTWARE_ARCHITECTURE.md)                          | C4, módulos, camadas, domínio, preocupações transversais, testes  |
+| [`docs/DATABASE.md`](docs/DATABASE.md)                                                    | Modelagem, dicionário de dados, constraints, consultas, migrações |
+| [`docs/API_SPEC.md`](docs/API_SPEC.md) · [`docs/api/openapi.yaml`](docs/api/openapi.yaml) | Server Actions, DTOs, erros, rotas HTTP                           |
+| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)                                            | Google, Resend, Neon, Vercel, Upstash, Sentry, R2, segredos, LGPD |
+| [`docs/FLOW_MAP.md`](docs/FLOW_MAP.md)                                                    | Navegação, jornadas e fluxos                                      |
