@@ -1,0 +1,18 @@
+# Nunca enviar credenciais ou segredos para o contexto de build
+.criptenv
+.env
+.env.*
+!.env.example
+
+# Artefatos e dependências (instalados/gerados dentro da imagem)
+node_modules
+.next
+coverage
+src/generated
+*.tsbuildinfo
+
+# Repositório e ferramentas
+.git
+.github
+.vercel
+docs

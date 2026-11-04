@@ -31,6 +31,18 @@ pnpm db:seed                    # (opcional) usuário demo@finflow.local com dad
 pnpm dev                        # http://localhost:3000
 ```
 
+### Em container, com secrets do CriptEnv
+
+O app também roda em container com **todos os secrets vindos do [CriptEnv](https://github.com/77mdias/criptenv)** (zero-knowledge, nada em `.env`):
+
+```bash
+bash scripts/criptenv-setup.sh seed-vault <project-id>   # cria os secrets de dev no cofre
+bash scripts/criptenv-setup.sh credentials               # grava API key / senha do cofre em .criptenv/
+docker compose --profile app up --build
+```
+
+Guia completo e relatório de teste: [`docs/CRIPTENV.md`](docs/CRIPTENV.md).
+
 Para entrar, solicite um magic link (por enquanto via API, até o frontend existir) e abra o e-mail no Mailpit:
 
 ```bash
@@ -85,13 +97,14 @@ Módulos: `invoices` (núcleo: ciclo de fatura, cobranças, pagamentos), `cards`
 
 ## Documentação
 
-| Documento                                                                                 | Conteúdo                                                          |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [`docs/PRD.md`](docs/PRD.md)                                                              | Visão, personas, escopo, métricas, roadmap                        |
-| [`docs/SRS.md`](docs/SRS.md)                                                              | Requisitos funcionais e não funcionais, regras de negócio (RN-\*) |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)                                            | Stack, infraestrutura, custos, CI/CD e ADRs                       |
-| [`docs/SOFTWARE_ARCHITECTURE.md`](docs/SOFTWARE_ARCHITECTURE.md)                          | C4, módulos, camadas, domínio, preocupações transversais, testes  |
-| [`docs/DATABASE.md`](docs/DATABASE.md)                                                    | Modelagem, dicionário de dados, constraints, consultas, migrações |
-| [`docs/API_SPEC.md`](docs/API_SPEC.md) · [`docs/api/openapi.yaml`](docs/api/openapi.yaml) | Server Actions, DTOs, erros, rotas HTTP                           |
-| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)                                            | Google, Resend, Neon, Vercel, Upstash, Sentry, R2, segredos, LGPD |
-| [`docs/FLOW_MAP.md`](docs/FLOW_MAP.md)                                                    | Navegação, jornadas e fluxos                                      |
+| Documento                                                                                 | Conteúdo                                                                  |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`docs/PRD.md`](docs/PRD.md)                                                              | Visão, personas, escopo, métricas, roadmap                                |
+| [`docs/SRS.md`](docs/SRS.md)                                                              | Requisitos funcionais e não funcionais, regras de negócio (RN-\*)         |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)                                            | Stack, infraestrutura, custos, CI/CD e ADRs                               |
+| [`docs/SOFTWARE_ARCHITECTURE.md`](docs/SOFTWARE_ARCHITECTURE.md)                          | C4, módulos, camadas, domínio, preocupações transversais, testes          |
+| [`docs/DATABASE.md`](docs/DATABASE.md)                                                    | Modelagem, dicionário de dados, constraints, consultas, migrações         |
+| [`docs/API_SPEC.md`](docs/API_SPEC.md) · [`docs/api/openapi.yaml`](docs/api/openapi.yaml) | Server Actions, DTOs, erros, rotas HTTP                                   |
+| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)                                            | Google, Resend, Neon, Vercel, Upstash, Sentry, R2, segredos, LGPD         |
+| [`docs/FLOW_MAP.md`](docs/FLOW_MAP.md)                                                    | Navegação, jornadas e fluxos                                              |
+| [`docs/CRIPTENV.md`](docs/CRIPTENV.md)                                                    | Secrets de desenvolvimento via CriptEnv em container + relatório de teste |

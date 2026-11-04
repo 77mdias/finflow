@@ -1,4 +1,9 @@
 # Ambiente local: Postgres 16 + Mailpit (captura de e-mails em http://localhost:8025)
+#
+#   docker compose up -d                  # só a infraestrutura (app roda no host com `pnpm dev`)
+#   docker compose --profile app up       # infraestrutura + app em container, secrets via CriptEnv
+#
+# O perfil `app` exige as credenciais do CriptEnv em .criptenv/ — veja docs/CRIPTENV.md.
 services:
   db:
     image: postgres:16-alpine
@@ -7,11 +12,11 @@ services:
       POSTGRES_PASSWORD: finflow
       POSTGRES_DB: finflow
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U finflow"]
+      test: ["CMD-SHELL", "pg_isready -U finflow -d finflow"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -19,8 +24,63 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
+  app:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: docker/dev/Dockerfile
+      args:
+        CRIPTENV_IMAGE: ${CRIPTENV_IMAGE:-ghcr.io/77mdias/criptenv-cli:latest}
+    environment:
+      # Ambiente do cofre a carregar (development | staging | production)
+      CRIPTENV_ENVIRONMENT: ${CRIPTENV_ENVIRONMENT:-development}
+      # Opcional: API do CriptEnv self-hosted (padrão: CriptEnv Cloud)
+      CRIPTENV_API_URL: ${CRIPTENV_API_URL:-https://criptenv-api.77mdevseven.tech}
+      WATCHPACK_POLLING: "true"
+    # Credenciais montadas como arquivos em /run/secrets (não aparecem no `docker inspect`).
+    secrets:
+      - criptenv_api_key
+      - criptenv_vault_password
+      - criptenv_project
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - .:/app
+      - app_node_modules:/app/node_modules
+      - app_next:/app/.next
+      # Prisma Client gerado (não versionado): volume próprio para não ser ocultado pelo bind mount
+      - app_prisma_client:/app/src/generated
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+secrets:
+  criptenv_api_key:
+    file: ./.criptenv/api_key
+  criptenv_vault_password:
+    file: ./.criptenv/vault_password
+  criptenv_project:
+    file: ./.criptenv/project
 
 volumes:
   pgdata:
+  app_node_modules:
+  app_next:
+  app_prisma_client:
