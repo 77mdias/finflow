@@ -1,0 +1,29 @@
+# dependências
+node_modules/
+.pnpm-store/
+
+# build
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# prisma client gerado
+src/generated/
+
+# testes
+coverage/
+
+# ambiente
+.env
+.env.*
+!.env.example
+
+# sistema / editores
+.DS_Store
+*.log
+.vercel
+.idea/
+.vscode/*
+!.vscode/extensions.json
