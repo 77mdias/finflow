@@ -377,6 +377,7 @@ Movimento **curto, suave e com propósito**: confirma uma ação, mostra de onde
   --surface: #ffffff;
   --surface-subtle: var(--color-ink-50);
   --surface-muted: var(--color-ink-100);
+  --surface-inverse: var(--color-ink-950);
   --fg: var(--color-ink-800);
   --fg-muted: var(--color-ink-600);
   --fg-subtle: rgb(33 29 38 / 0.45);
@@ -387,6 +388,8 @@ Movimento **curto, suave e com propósito**: confirma uma ação, mostra de onde
   --primary-hover: var(--color-iris-700);
   --tonal: var(--color-iris-50);
   --tonal-fg: var(--color-iris-700);
+  --neutral-btn: var(--color-ink-800);
+  --neutral-btn-fg: #ffffff;
   --ring: var(--color-iris-600);
   color-scheme: light;
 }
@@ -396,6 +399,7 @@ Movimento **curto, suave e com propósito**: confirma uma ação, mostra de onde
   --surface: var(--color-ink-900);
   --surface-subtle: var(--color-ink-850);
   --surface-muted: #2a2631;
+  --surface-inverse: #ffffff;
   --fg: #f4f2f7;
   --fg-muted: var(--color-ink-400);
   --fg-subtle: rgb(244 242 247 / 0.4);
@@ -406,6 +410,8 @@ Movimento **curto, suave e com propósito**: confirma uma ação, mostra de onde
   --primary-hover: var(--color-iris-300);
   --tonal: rgb(155 140 255 / 0.14);
   --tonal-fg: var(--color-iris-300);
+  --neutral-btn: #ffffff;
+  --neutral-btn-fg: var(--color-ink-950);
   --ring: var(--color-iris-300);
   color-scheme: dark;
 }
@@ -420,8 +426,27 @@ Movimento **curto, suave e com propósito**: confirma uma ação, mostra de onde
   }
 }
 @media (prefers-color-scheme: dark) {
+  /* Tema do sistema, salvo escolha explícita de tema claro */
   :root:not([data-theme="light"]) {
-    /* mesmos valores de [data-theme="dark"] */
+    --bg: var(--color-ink-950);
+    --surface: var(--color-ink-900);
+    --surface-subtle: var(--color-ink-850);
+    --surface-muted: #2a2631;
+    --surface-inverse: #ffffff;
+    --fg: #f4f2f7;
+    --fg-muted: var(--color-ink-400);
+    --fg-subtle: rgb(244 242 247 / 0.4);
+    --border: rgb(255 255 255 / 0.08);
+    --border-strong: rgb(255 255 255 / 0.14);
+    --primary: var(--color-iris-400);
+    --primary-fg: var(--color-ink-950);
+    --primary-hover: var(--color-iris-300);
+    --tonal: rgb(155 140 255 / 0.14);
+    --tonal-fg: var(--color-iris-300);
+    --neutral-btn: #ffffff;
+    --neutral-btn-fg: var(--color-ink-950);
+    --ring: var(--color-iris-300);
+    color-scheme: dark;
   }
 }
 ```
