@@ -1,0 +1,90 @@
+name: Deploy
+
+# Roda depois que o CI passa na master (ou manualmente). Ordem: migrações → deploy → smoke test.
+# Secrets necessários (Settings → Environments → production):
+#   DIRECT_URL        conexão direta do Neon (produção) para `prisma migrate deploy`
+#   VERCEL_TOKEN      token da Vercel
+#   VERCEL_ORG_ID     id do time/conta na Vercel
+#   VERCEL_PROJECT_ID id do projeto na Vercel
+# Variável (vars): APP_URL, ex.: https://finflow.app
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Produção
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.APP_URL }}
+    env:
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Verificar configuração
+        id: config
+        run: |
+          missing=""
+          for v in DIRECT_URL VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::Deploy ignorado — secrets ausentes:$missing (veja o cabeçalho deste workflow)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.config.outputs.ready == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: pnpm/action-setup@v4
+        if: steps.config.outputs.ready == 'true'
+      - uses: actions/setup-node@v5
+        if: steps.config.outputs.ready == 'true'
+        with:
+          node-version: "24"
+          cache: pnpm
+      - if: steps.config.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Migrações (expand/contract — sempre retrocompatíveis)
+        if: steps.config.outputs.ready == 'true'
+        run: pnpm db:deploy
+
+      - name: Build e deploy na Vercel
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+          url="$(npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "DEPLOY_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Smoke test (/api/health)
+        if: steps.config.outputs.ready == 'true'
+        run: |
+          target="${{ vars.APP_URL }}"
+          target="${target:-$DEPLOY_URL}"
+          for i in $(seq 1 10); do
+            if curl -fsS "$target/api/health" | tee /dev/stderr | grep -q '"status":"ok"'; then exit 0; fi
+            sleep 6
+          done
+          echo "::error::Health check falhou em $target"
+          exit 1
