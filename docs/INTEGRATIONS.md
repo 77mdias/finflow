@@ -44,6 +44,7 @@ flowchart LR
 | 6 | Sentry | Erros, performance, cron monitor | → | Baixa | Perda de visibilidade |
 | 7 | GitHub Actions | CI/CD, backup | — | Média | Sem deploy/backup automático |
 | 8 | Cloudflare R2 | Armazenamento de backups | → | Média | Só PITR do Neon |
+| 9 | CriptEnv | Secrets do ambiente de desenvolvimento em container ([CRIPTENV.md](CRIPTENV.md)) | → | Baixa (dev) | Usar `.env` local |
 
 ---
 
