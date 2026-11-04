@@ -550,8 +550,7 @@ function SiteFooter() {
         <div className="max-w-[460px]">
           <Logo />
           <p className="mt-3 text-body-sm text-fg-muted">
-            Código aberto sob a licença AGPL-3.0. As marcas exibidas nos cartões pertencem aos seus titulares;
-            o FinFlow não é afiliado a nenhuma instituição financeira.
+            Código aberto sob a licença AGPL-3.0. O FinFlow não é afiliado a nenhum banco.
           </p>
         </div>
         <nav aria-label="Rodapé" className="flex flex-wrap gap-x-6 gap-y-2 text-body-sm">

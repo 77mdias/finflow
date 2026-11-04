@@ -640,5 +640,3 @@ Regras: foco sempre visível (`--ring`); status com ícone + texto; alvos ≥ 44
 | Bandeiras de cartão     | Visa, Mastercard, Elo, Amex e Hipercard continuam **só como texto** (manuais de marca restringem o uso por não emissores)                                                       |
 | Retirada                | Processo para remover um logo prontamente se a instituição solicitar                                                                                                            |
 | Fallback                | Ícone personalizado do usuário e iniciais (§2.5) continuam disponíveis                                                                                                          |
-
-> **Exceção em vigor (decisão de produto, 04/11/2026):** o hero da landing exibe modelos 3D de cartões reais (`public/3D`: Caixa, PicPay, Inter, Nubank), com logotipos da instituição e da bandeira, contrariando a linha "Fora do marketing" acima. O rodapé da landing traz o aviso de marcas e de não afiliação. A base legal e a retirada continuam valendo: a remoção de um modelo deve ser imediata se a instituição pedir.

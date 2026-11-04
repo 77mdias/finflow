@@ -5,18 +5,18 @@ import { useEffect, useRef, useState } from "react";
 
 import { button } from "@/shared/ui/button";
 
-// Modelos otimizados com scripts/optimize-glb.sh (meshopt + WebP 1024).
-// `flip`: o modelo foi exportado com a frente voltada para −Z.
-const MODELS = [
-  { url: "/3D/caixacard.glb" },
-  { url: "/3D/picpaycard.glb" },
-  { url: "/3D/intercard.glb", flip: true },
-  { url: "/3D/nubankcard.glb", flip: true },
+// Cartões próprios do FinFlow (sem marcas de terceiros), com malha em meshopt e texturas WebP.
+// `flip`: use quando o modelo for exportado com a frente voltada para −Z.
+const MODELS: { url: string; flip?: boolean }[] = [
+  { url: "/3D/card-1.glb" },
+  { url: "/3D/card-2.glb" },
+  { url: "/3D/card-3.glb" },
+  { url: "/3D/card-4.glb" },
 ];
 
 type Pose = { x: number; y: number; z: number; rx: number; ry: number; rz: number };
 
-// Posições de repouso em unidades da cena (cartão ≈ 1,9 × 1,2), um por modelo.
+// Posições de repouso em unidades da cena (cartão ≈ 1,9 × 1,1), uma por modelo.
 // Palco largo: fila escalonada, cada cartão voltado para o centro. Estreito: grade 2 × 2.
 const LAYOUTS: Record<"row" | "grid", Pose[]> = {
   row: [
@@ -33,6 +33,7 @@ const LAYOUTS: Record<"row" | "grid", Pose[]> = {
   ],
 };
 const ROW_MIN_ASPECT = 2;
+const PIXEL_BUDGET = 2_600_000; // teto de pixels do canvas: largura total com DPR 2 pesaria no preenchimento
 
 const ENTRANCE_MS = 1300;
 const STAGGER_MS = 130;
@@ -91,7 +92,7 @@ export function CardStage() {
       <div
         ref={hostRef}
         role="img"
-        aria-label="Quatro cartões de crédito em 3D que você pode arrastar, girar e virar"
+        aria-label="Cartões do FinFlow em 3D que você pode arrastar, girar e virar"
         // pan-y: no celular, arrastar na vertical rola a página; na horizontal, move o cartão.
         className={`absolute inset-0 touch-pan-y transition-opacity duration-500 ease-out ${ready ? "opacity-100" : "opacity-0"}`}
       />
@@ -115,6 +116,15 @@ export function CardStage() {
 }
 
 async function mountScene(host: HTMLDivElement): Promise<Scene> {
+  // Os modelos são o maior peso da página: baixa em paralelo com o three.js, não depois dele.
+  const downloads = MODELS.map(({ url }) =>
+    fetch(url).then((res) => {
+      if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+      return res.arrayBuffer();
+    }),
+  );
+  for (const d of downloads) d.catch(() => undefined); // o erro é tratado por cartão, mais abaixo
+
   const [THREE, { GLTFLoader }, { MeshoptDecoder }, { RoomEnvironment }] = await Promise.all([
     import("three"),
     import("three/examples/jsm/loaders/GLTFLoader.js"),
@@ -124,10 +134,8 @@ async function mountScene(host: HTMLDivElement): Promise<Scene> {
   type Vec3 = InstanceType<typeof THREE.Vector3>;
 
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const gltfs = await Promise.all(MODELS.map(({ url }) => loader.loadAsync(url)));
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.domElement.style.cssText = "display:block;width:100%;height:100%";
   host.appendChild(renderer.domElement);
@@ -143,15 +151,15 @@ async function mountScene(host: HTMLDivElement): Promise<Scene> {
   const rig = new THREE.Group(); // inclinação sutil que segue o ponteiro
   scene.add(rig);
 
-  const cards = gltfs.map((gltf, i) => {
+  // Cada cartão começa vazio e invisível; o modelo entra quando o arquivo dele chega.
+  const cards = MODELS.map((_, i) => {
     const body = new THREE.Group();
-    if (MODELS[i]?.flip) gltf.scene.rotation.y = Math.PI;
-    gltf.scene.traverse((o) => (o.userData.card = i));
-    body.add(gltf.scene);
+    body.visible = false;
     rig.add(body);
     return {
       body,
       index: i,
+      born: Infinity, // quando a entrada começa (o modelo terminou de carregar)
       phase: i * 1.7,
       hover: false,
       rest: new THREE.Vector3(), // onde o cartão fica (muda quando o usuário solta)
@@ -192,6 +200,7 @@ async function mountScene(host: HTMLDivElement): Promise<Scene> {
   const fit = () => {
     const { clientWidth: w, clientHeight: h } = host;
     if (!w || !h) return;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2, Math.sqrt(PIXEL_BUDGET / (w * h))));
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     const kind = camera.aspect >= ROW_MIN_ASPECT ? "row" : "grid";
@@ -253,9 +262,9 @@ async function mountScene(host: HTMLDivElement): Promise<Scene> {
     let busy = false;
 
     for (const c of cards) {
-      const p = reduced ? 1 : Math.min(Math.max((now - start - c.index * STAGGER_MS) / ENTRANCE_MS, 0), 1);
+      const p = reduced ? 1 : Math.min(Math.max((now - c.born) / ENTRANCE_MS, 0), 1);
       const e = easeOutExpo(p);
-      if (p < 1) busy = true;
+      if (c.body.visible && p < 1) busy = true;
 
       const grabbed = drag?.card === c;
       const moving = grabbed && drag?.mode === "move";
@@ -453,34 +462,60 @@ async function mountScene(host: HTMLDivElement): Promise<Scene> {
   fit();
   kick();
 
+  let disposed = false;
+  const dispose = () => {
+    disposed = true;
+    cancelAnimationFrame(raf);
+    ro.disconnect();
+    vis.disconnect();
+    host.removeEventListener("pointerdown", onDown);
+    host.removeEventListener("pointermove", onMove);
+    host.removeEventListener("pointerup", onUp);
+    host.removeEventListener("pointercancel", onUp);
+    host.removeEventListener("pointerleave", onLeave);
+    host.removeEventListener("contextmenu", onContextMenu);
+    scene.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      obj.geometry.dispose();
+      for (const m of [obj.material].flat() as InstanceType<typeof THREE.MeshStandardMaterial>[]) {
+        for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap, m.emissiveMap]) t?.dispose();
+        m.dispose();
+      }
+    });
+    envMap.dispose();
+    room.dispose();
+    pmrem.dispose();
+    renderer.dispose();
+    renderer.domElement.remove();
+  };
+
+  // Cada cartão entra assim que o próprio arquivo chega (os downloads já começaram junto com o three.js);
+  // o palco aparece com o primeiro. Se dois chegam juntos, a entrada é escalonada.
+  let lastBorn = -Infinity;
+  const loaded = cards.map((c, i) =>
+    (downloads[i] as Promise<ArrayBuffer>)
+      .then((buffer) => loader.parseAsync(buffer, ""))
+      .then((gltf) => {
+        if (disposed) return;
+        if (MODELS[i]?.flip) gltf.scene.rotation.y = Math.PI;
+        gltf.scene.traverse((o) => (o.userData.card = i));
+        c.body.add(gltf.scene);
+        c.body.visible = true;
+        c.born = Math.max(performance.now(), lastBorn + STAGGER_MS);
+        lastBorn = c.born;
+        kick();
+      }),
+  );
+  await Promise.any(loaded).catch((err: unknown) => {
+    dispose();
+    throw err;
+  });
+
   return {
     reset: () => {
       if (layout) applyLayout(layout, reduced);
       kick();
     },
-    dispose: () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-      vis.disconnect();
-      host.removeEventListener("pointerdown", onDown);
-      host.removeEventListener("pointermove", onMove);
-      host.removeEventListener("pointerup", onUp);
-      host.removeEventListener("pointercancel", onUp);
-      host.removeEventListener("pointerleave", onLeave);
-      host.removeEventListener("contextmenu", onContextMenu);
-      scene.traverse((obj) => {
-        if (!(obj instanceof THREE.Mesh)) return;
-        obj.geometry.dispose();
-        for (const m of [obj.material].flat() as InstanceType<typeof THREE.MeshStandardMaterial>[]) {
-          for (const t of [m.map, m.normalMap, m.roughnessMap, m.metalnessMap, m.emissiveMap]) t?.dispose();
-          m.dispose();
-        }
-      });
-      envMap.dispose();
-      room.dispose();
-      pmrem.dispose();
-      renderer.dispose();
-      renderer.domElement.remove();
-    },
+    dispose,
   };
 }
