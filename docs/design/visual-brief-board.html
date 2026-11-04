@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FinFlow — Prancha do briefing visual</title>
+<!-- Fontes OFL (Manrope + Inter). Prancha estática: renderize em 1440 px de largura. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Manrope:wght@400..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink-950:#0E0D12; --ink-900:#16141B; --ink-850:#1E1B24; --ink-800:#211D26; --ink-600:#67636D; --ink-400:#A9A5AF;
+    --ink-200:#E4E2E8; --ink-100:#EFEDF2; --ink-50:#F6F5F8;
+    --iris-50:#F2F0FF; --iris-100:#E6E2FF; --iris-200:#CEC6FF; --iris-300:#B3A8FF; --iris-400:#9B8CFF; --iris-500:#8571FF;
+    --iris-600:#6A4DF5; --iris-700:#5B3FE0; --iris-800:#4630B0;
+    --pos-50:#E8F7EF; --pos-500:#12B76A; --pos-700:#087A45;
+    --warn-50:#FEF6E7; --warn-500:#F5A524; --warn-700:#B45309;
+    --dan-50:#FEF0EE; --dan-500:#F04438; --dan-600:#D92D20; --dan-700:#B42318;
+    --bg:#fff; --surface:#fff; --surface-subtle:var(--ink-50); --fg:var(--ink-800); --fg-muted:var(--ink-600);
+    --border:rgba(33,29,38,.06); --border-strong:rgba(33,29,38,.12);
+    --display:"Manrope", "Inter", system-ui, sans-serif; --sans:"Inter", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #FBFAFD; color: var(--fg); font: 400 15px/22px var(--sans); letter-spacing: -.005em; -webkit-font-smoothing: antialiased; }
+  .board { width: 1440px; margin: 0 auto; padding: 64px 72px 80px; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  h1 { font: 600 56px/60px var(--display); letter-spacing: -.04em; }
+  h2 { font: 600 24px/31px var(--display); letter-spacing: -.025em; margin-bottom: 20px; }
+  .eyebrow { font: 600 12px/16px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--iris-700); }
+  .muted { color: var(--fg-muted); }
+  .lead { font: 400 18px/27px var(--sans); color: var(--fg-muted); max-width: 760px; margin-top: 16px; }
+  .grid { display: grid; gap: 24px; }
+  .panel { background: var(--surface); border-radius: 32px; box-shadow: 0 0 0 1px var(--border); padding: 40px; }
+  section { margin-top: 32px; }
+  .principles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 40px; }
+  .principle { background: var(--surface); border-radius: 24px; box-shadow: 0 0 0 1px var(--border); padding: 20px; }
+  .principle b { display: block; font: 600 15px/22px var(--sans); margin-bottom: 4px; }
+  .principle span { font-size: 14px; line-height: 20px; color: var(--fg-muted); }
+
+  /* paleta */
+  .ramp { display: grid; grid-template-columns: 120px repeat(9, 1fr); gap: 8px; align-items: stretch; margin-bottom: 12px; }
+  .ramp .name { font: 600 14px/20px var(--sans); align-self: center; }
+  .sw { border-radius: 12px; height: 72px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: flex-end; font: 500 11px/14px var(--sans); }
+  .sw small { opacity: .8; font-weight: 400; }
+  .sem { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 20px; }
+  .semcard { border-radius: 20px; padding: 16px; box-shadow: 0 0 0 1px var(--border); }
+  .chips { display: flex; gap: 6px; margin-top: 10px; }
+  .chip { height: 28px; flex: 1; border-radius: 8px; }
+
+  /* tipografia */
+  .type-row { display: grid; grid-template-columns: 170px 1fr; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row .meta { font: 500 12px/16px var(--sans); color: var(--fg-muted); }
+  .money { font-family: var(--display); font-weight: 600; letter-spacing: -.04em; font-variant-numeric: tabular-nums; display: inline-flex; align-items: flex-start; }
+  .money .cur { font: 600 18px/1 var(--sans); color: var(--fg-muted); letter-spacing: 0; margin: .5em 8px 0 0; }
+  .money .cents { font-size: .55em; line-height: 1.2; }
+
+  /* componentes */
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn { height: 40px; padding: 0 18px; border-radius: 999px; font: 500 14px/1 var(--sans); display: inline-flex; align-items: center; gap: 8px; border: 0; white-space: nowrap; }
+  .btn.lg { height: 52px; padding: 0 24px; font-size: 16px; }
+  .btn.sm { height: 32px; padding: 0 14px; font-size: 13px; }
+  .primary { background: var(--iris-600); color: #fff; }
+  .neutral { background: var(--ink-800); color: #fff; }
+  .tonal { background: var(--iris-50); color: var(--iris-700); }
+  .ghost { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .danger { background: var(--dan-600); color: #fff; }
+  .focus { outline: 2px solid var(--iris-600); outline-offset: 2px; }
+  .badge { height: 24px; padding: 0 10px; border-radius: 999px; font: 500 12px/1 var(--sans); display: inline-flex; align-items: center; gap: 6px; }
+  .b-open { background: var(--iris-50); color: var(--iris-700); } .b-closed { background: var(--warn-50); color: var(--warn-700); }
+  .b-paid { background: var(--pos-50); color: var(--pos-700); } .b-over { background: var(--dan-50); color: var(--dan-700); }
+  .b-future { box-shadow: inset 0 0 0 1px var(--border-strong); color: var(--fg-muted); }
+  .seg { display: inline-flex; background: var(--surface-subtle); border-radius: 999px; padding: 4px; gap: 2px; }
+  .seg span { height: 32px; padding: 0 14px; border-radius: 999px; font: 500 13px/32px var(--sans); color: var(--fg-muted); }
+  .seg span.on { background: #fff; color: var(--fg); box-shadow: 0 1px 2px rgba(33,29,38,.08); }
+  .field label { display: block; font: 500 14px/20px var(--sans); margin-bottom: 6px; }
+  .input { height: 44px; border-radius: 12px; background: var(--surface-subtle); display: flex; align-items: center; padding: 0 14px; gap: 8px; font-size: 15px; width: 260px; }
+  .input.focus-ring { background: #fff; box-shadow: 0 0 0 2px var(--iris-600); outline: none; }
+  .stat { background: #fff; border-radius: 24px; box-shadow: 0 0 0 1px var(--border); padding: 20px 24px; }
+  .stat .v { font: 600 28px/32px var(--display); letter-spacing: -.03em; margin: 12px 0 4px; font-variant-numeric: tabular-nums; }
+  .stat .d { font-size: 14px; color: var(--fg-muted); }
+  .ico { width: 24px; height: 24px; color: var(--iris-500); }
+
+  /* cartões virtuais */
+  .vcard { width: 260px; aspect-ratio: 1.586; border-radius: 16px; padding: 18px 20px; color: #fff; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 12px 28px rgba(33,29,38,.18); position: relative; overflow: hidden; }
+  .vcard::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 80% at 100% 0%, rgba(255,255,255,.22), transparent 55%); pointer-events: none; }
+  .vcard .top { display: flex; justify-content: space-between; font: 600 16px/22px var(--sans); }
+  .vcard .brand { font: 600 11px/14px var(--sans); letter-spacing: .08em; opacity: .85; }
+  .vcard .num { font: 500 14px/18px var(--sans); letter-spacing: .12em; opacity: .9; }
+  .vcard .foot { font: 500 12px/16px var(--sans); opacity: .9; display: flex; justify-content: space-between; }
+  .g-violet { background: linear-gradient(135deg,#8571FF,#5B3FE0); } .g-emerald { background: linear-gradient(135deg,#34D399,#0B8A5E); }
+  .g-black { background: linear-gradient(135deg,#2A2631,#0E0D12); } .g-amber { background: linear-gradient(135deg,#FCD34D,#F59E0B); color: var(--ink-800); }
+
+  /* telas */
+  .screens { display: grid; grid-template-columns: 390px 1fr; gap: 32px; align-items: start; }
+  .phone { width: 390px; border-radius: 44px; background: #fff; box-shadow: 0 0 0 10px #E9E7EE, 0 30px 60px rgba(33,29,38,.18); overflow: hidden; }
+  .phone .bar { height: 44px; display: flex; justify-content: space-between; align-items: center; padding: 0 28px; font: 600 14px/1 var(--sans); }
+  .phone .content { padding: 4px 20px 0; }
+  .ph-head { display: flex; justify-content: space-between; align-items: center; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--iris-100); color: var(--iris-700); display: grid; place-items: center; font: 600 13px/1 var(--sans); }
+  .bell { width: 36px; height: 36px; border-radius: 50%; background: var(--surface-subtle); display: grid; place-items: center; position: relative; }
+  .bell i { position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--dan-500); box-shadow: 0 0 0 2px var(--surface-subtle); }
+  .delta { display: inline-flex; gap: 6px; align-items: center; font: 500 13px/1 var(--sans); color: var(--pos-700); }
+  .bars { display: flex; align-items: flex-end; gap: 10px; height: 150px; margin-top: 20px; }
+  .bars div { flex: 1; border-radius: 10px 10px 6px 6px; background: linear-gradient(180deg,var(--iris-500),var(--iris-200)); }
+  .bars div.proj { background: repeating-linear-gradient(135deg, rgba(133,113,255,.45) 0 4px, rgba(206,198,255,.45) 4px 8px); box-shadow: inset 0 0 0 1px var(--iris-300); }
+  .axis { display: flex; gap: 10px; margin-top: 8px; } .axis span { flex: 1; text-align: center; font: 500 11px/14px var(--sans); color: var(--fg-muted); }
+  .list { margin-top: 20px; padding-bottom: 64px; }
+  .list h4 { font: 600 15px/22px var(--sans); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .item { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; min-height: 56px; border-bottom: 1px solid var(--border); }
+  .item:last-child { border-bottom: 0; }
+  .logo { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; font: 700 13px/1 var(--sans); color: #fff; }
+  .logo.dashed { background: transparent !important; color: var(--iris-600); box-shadow: inset 0 0 0 1.5px var(--iris-300); border-radius: 12px; }
+  .item .t { font: 500 15px/20px var(--sans); } .item .m { font-size: 13px; line-height: 18px; color: var(--fg-muted); }
+  .item .val { font: 500 15px/20px var(--sans); font-variant-numeric: tabular-nums; text-align: right; }
+  .item .val small { display: block; font-size: 11px; color: var(--fg-muted); font-weight: 500; }
+  .nav { display: flex; justify-content: space-around; align-items: center; height: 72px; border-top: 1px solid var(--border); margin-top: 16px; position: relative; }
+  .nav span { font: 500 11px/14px var(--sans); color: var(--fg-muted); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .nav span.on { color: var(--fg); }
+  .nav .dot { width: 20px; height: 20px; border-radius: 6px; background: var(--ink-100); } .nav span.on .dot { background: var(--ink-800); }
+  .fab { position: absolute; right: 20px; top: -72px; width: 56px; height: 56px; border-radius: 50%; background: var(--iris-600); color: #fff; display: grid; place-items: center; font: 400 30px/1 var(--sans); box-shadow: 0 10px 24px rgba(106,77,245,.35); }
+
+  .desk { background: #fff; border-radius: 32px; box-shadow: 0 0 0 1px var(--border); overflow: hidden; display: grid; grid-template-columns: 188px 1fr; }
+  .side { background: #FBFAFD; border-right: 1px solid var(--border); padding: 24px 16px; }
+  .side .logo-w { font: 700 20px/24px var(--display); letter-spacing: -.03em; padding: 0 10px 24px; }
+  .side .logo-w b { color: var(--iris-600); }
+  .side a { display: flex; gap: 10px; align-items: center; height: 40px; padding: 0 10px; border-radius: 12px; font: 500 14px/1 var(--sans); color: var(--fg-muted); text-decoration: none; }
+  .side a.on { background: var(--ink-100); color: var(--fg); }
+  .side a i { width: 18px; height: 18px; border-radius: 5px; background: currentColor; opacity: .35; } .side a.on i { opacity: 1; }
+  .main { padding: 28px 28px 32px; }
+  .inv-head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .crumbs { font-size: 13px; color: var(--fg-muted); margin-bottom: 6px; }
+  .inv-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-top: 24px; }
+  .card { background: #fff; border-radius: 24px; box-shadow: 0 0 0 1px var(--border); padding: 24px; }
+  .card h3 { font: 600 16px/22px var(--sans); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; white-space: nowrap; }
+  .kv:last-child { border-bottom: 0; } .kv span:first-child { color: var(--fg-muted); }
+  .progress { height: 8px; border-radius: 999px; background: var(--ink-100); overflow: hidden; margin: 12px 0 6px; }
+  .progress i { display: block; height: 100%; width: 36%; background: var(--iris-500); border-radius: 999px; }
+
+  .dark { background: var(--ink-950); color: #F4F2F7; border-radius: 32px; padding: 40px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+  .dark .dcard { background: var(--ink-900); border-radius: 24px; box-shadow: 0 0 0 1px rgba(255,255,255,.08); padding: 24px; }
+  .dark .muted { color: var(--ink-400); }
+  .dark .btn.primary { background: var(--iris-400); color: var(--ink-950); }
+  .dark .btn.tonal { background: rgba(155,140,255,.14); color: var(--iris-300); }
+  .dark .badge.b-over { background: rgba(240,68,56,.14); color: #F97066; } .dark .badge.b-paid { background: rgba(18,183,106,.14); color: #34D399; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .notes ul { list-style: none; } .notes li { padding: 8px 0 8px 28px; position: relative; font-size: 14px; line-height: 20px; border-bottom: 1px solid var(--border); }
+  .notes li::before { position: absolute; left: 0; top: 8px; font: 700 14px/20px var(--sans); }
+  .do li::before { content: "✓"; color: var(--pos-700); } .dont li::before { content: "✕"; color: var(--dan-700); }
+  footer { margin-top: 40px; font-size: 13px; color: var(--fg-muted); display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<main class="board">
+  <p class="eyebrow">FinFlow · Briefing visual v1 · 04/11/2026</p>
+  <h1 style="margin-top:12px">Calma, clareza e o número em primeiro plano.</h1>
+  <p class="lead">Linguagem clara e arejada, com tipografia geométrica de grande escala, acento violeta e superfícies separadas por bordas finas — adaptada a um app de controle de cartões, assinaturas e faturas. Tokens completos em <b>DESIGN.md</b>.</p>
+
+  <div class="principles">
+    <div class="principle"><b>Calma antes de alarme</b><span>Muito respiro; cor forte só em decisões e riscos.</span></div>
+    <div class="principle"><b>O número é o herói</b><span>Um valor principal por tela, em destaque tipográfico.</span></div>
+    <div class="principle"><b>Previsto ≠ confirmado</b><span>Projeções com hachura e rótulo, nunca só cor.</span></div>
+    <div class="principle"><b>Uma ação primária</b><span>No máximo um botão preenchido por área.</span></div>
+    <div class="principle"><b>Acessível por padrão</b><span>Contraste AA medido, ícone + texto nos estados.</span></div>
+  </div>
+
+  <!-- PALETA -->
+  <section class="panel">
+    <h2>Cor</h2>
+    <div class="ramp"><div class="name">Ink</div>
+      <div class="sw" style="background:#0E0D12;color:#fff">950<small>#0E0D12</small></div>
+      <div class="sw" style="background:#16141B;color:#fff">900<small>#16141B</small></div>
+      <div class="sw" style="background:#1E1B24;color:#fff">850<small>#1E1B24</small></div>
+      <div class="sw" style="background:#211D26;color:#fff">800 · texto<small>#211D26</small></div>
+      <div class="sw" style="background:#67636D;color:#fff">600 · secundário<small>#67636D</small></div>
+      <div class="sw" style="background:#A9A5AF;color:#211D26">400<small>#A9A5AF</small></div>
+      <div class="sw" style="background:#E4E2E8">200<small>#E4E2E8</small></div>
+      <div class="sw" style="background:#EFEDF2">100<small>#EFEDF2</small></div>
+      <div class="sw" style="background:#F6F5F8;box-shadow:inset 0 0 0 1px var(--border)">50<small>#F6F5F8</small></div>
+    </div>
+    <div class="ramp"><div class="name">Iris · marca</div>
+      <div class="sw" style="background:#F2F0FF;color:#5B3FE0">50<small>#F2F0FF</small></div>
+      <div class="sw" style="background:#E6E2FF;color:#5B3FE0">100<small>#E6E2FF</small></div>
+      <div class="sw" style="background:#CEC6FF;color:#4630B0">200<small>#CEC6FF</small></div>
+      <div class="sw" style="background:#B3A8FF;color:#211D26">300<small>#B3A8FF</small></div>
+      <div class="sw" style="background:#9B8CFF;color:#0E0D12">400<small>#9B8CFF</small></div>
+      <div class="sw" style="background:#8571FF;color:#0E0D12">500 · gráficos<small>#8571FF</small></div>
+      <div class="sw" style="background:#6A4DF5;color:#fff">600 · primário<small>#6A4DF5</small></div>
+      <div class="sw" style="background:#5B3FE0;color:#fff">700<small>#5B3FE0</small></div>
+      <div class="sw" style="background:#4630B0;color:#fff">800<small>#4630B0</small></div>
+    </div>
+    <div class="sem">
+      <div class="semcard"><b>Positivo</b> <span class="muted">· paga, rendimento</span><div class="chips"><div class="chip" style="background:#E8F7EF"></div><div class="chip" style="background:#12B76A"></div><div class="chip" style="background:#087A45"></div></div></div>
+      <div class="semcard"><b>Atenção</b> <span class="muted">· fechada, vence logo</span><div class="chips"><div class="chip" style="background:#FEF6E7"></div><div class="chip" style="background:#F5A524"></div><div class="chip" style="background:#B45309"></div></div></div>
+      <div class="semcard"><b>Perigo</b> <span class="muted">· vencida, excluir</span><div class="chips"><div class="chip" style="background:#FEF0EE"></div><div class="chip" style="background:#F04438"></div><div class="chip" style="background:#B42318"></div></div></div>
+      <div class="semcard"><b>Informação</b> <span class="muted">· aberta, dicas</span><div class="chips"><div class="chip" style="background:#F2F0FF"></div><div class="chip" style="background:#8571FF"></div><div class="chip" style="background:#5B3FE0"></div></div></div>
+    </div>
+  </section>
+
+  <!-- TIPOGRAFIA + COMPONENTES -->
+  <section class="grid" style="grid-template-columns: 1.1fr 1fr;">
+    <div class="panel">
+      <h2>Tipografia · Manrope + Inter</h2>
+      <div class="type-row"><div class="meta">display · Manrope 56/60 · 600</div><div class="money" style="font-size:56px;line-height:60px"><span class="cur">R$</span>9.847<span class="cents">,31</span></div></div>
+      <div class="type-row"><div class="meta">heading-lg · Manrope 32/38</div><div style="font:600 32px/38px var(--display);letter-spacing:-.03em">Fatura de dezembro</div></div>
+      <div class="type-row"><div class="meta">heading · Manrope 24/31</div><div style="font:600 24px/31px var(--display);letter-spacing:-.025em">Próximos 14 dias</div></div>
+      <div class="type-row"><div class="meta">heading-sm · Inter 18/26 · 600</div><div style="font:600 18px/26px var(--sans)">Assinaturas ativas</div></div>
+      <div class="type-row"><div class="meta">body · Inter 15/22</div><div>A fatura do Roxinho fecha em 25/11 e vence em 05/12.</div></div>
+      <div class="type-row"><div class="meta">body-sm · Inter 14/20</div><div class="muted" style="font-size:14px">12/11 · Streaming · cobrança mensal</div></div>
+      <div class="type-row"><div class="meta">caption · Inter 12/16 · 500</div><div style="font:500 12px/16px var(--sans);color:var(--fg-muted)">Previsto · atualizado há 2 min</div></div>
+    </div>
+    <div class="panel">
+      <h2>Componentes</h2>
+      <div class="row"><button class="btn primary">Registrar pagamento</button><button class="btn neutral">Novo cartão</button><button class="btn tonal">Ver fatura</button></div>
+      <div class="row" style="margin-top:12px"><button class="btn ghost">Cancelar</button><button class="btn danger">Excluir despesa</button><button class="btn primary focus">Foco</button><button class="btn tonal sm">Pequeno</button></div>
+      <div class="row" style="margin-top:20px"><span class="badge b-open">◷ Aberta</span><span class="badge b-closed">▤ Fechada</span><span class="badge b-paid">✓ Paga</span><span class="badge b-over">⚠ Vencida</span><span class="badge b-future">▦ Futura</span></div>
+      <div style="margin-top:20px" class="seg"><span>1M</span><span class="on">3M</span><span>12M</span><span>Tudo</span><span>Previsto ✦</span></div>
+      <div class="row" style="margin-top:20px; gap:16px; align-items:flex-end">
+        <div class="field"><label>Valor</label><div class="input"><span class="muted">R$</span><span class="tnum">55,90</span></div></div>
+        <div class="field"><label>Próxima cobrança</label><div class="input focus-ring"><span class="tnum">12/12/2026</span></div></div>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:20px">
+        <div class="stat"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 8v4l3 2"/></svg><div class="v">R$ 287,40</div><div class="d">em assinaturas por mês</div></div>
+        <div class="stat"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg><div class="v">3 cartões</div><div class="d">R$ 6.120 de limite livre</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CARTÕES -->
+  <section class="panel">
+    <h2>Cartões virtuais · gradientes por cor (sem logotipos reais)</h2>
+    <div class="row" style="gap:24px">
+      <div class="vcard g-violet"><div class="top">Roxinho<span class="brand">CRÉDITO</span></div><div class="num tnum">•••• 1234</div><div class="foot"><span>Fecha dia 25</span><span>Vence dia 5</span></div></div>
+      <div class="vcard g-emerald"><div class="top">Viagem<span class="brand">CRÉDITO</span></div><div class="num tnum">•••• 9081</div><div class="foot"><span>Fecha dia 3</span><span>Vence dia 10</span></div></div>
+      <div class="vcard g-black"><div class="top">Trabalho<span class="brand">CRÉDITO</span></div><div class="num tnum">&nbsp;</div><div class="foot"><span>Fecha dia 15</span><span>Vence dia 25</span></div></div>
+      <div class="vcard g-amber"><div class="top">Loja<span class="brand">CRÉDITO</span></div><div class="num tnum">•••• 4420</div><div class="foot"><span>Fecha dia 31</span><span>Vence dia 10</span></div></div>
+    </div>
+  </section>
+
+  <!-- TELAS -->
+  <section class="screens">
+    <div class="phone">
+      <div class="bar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="content">
+        <div class="ph-head"><div class="avatar">AN</div><div class="seg" style="padding:3px"><span style="height:28px;line-height:28px">◀</span><span class="on" style="height:28px;line-height:28px">Dezembro</span><span style="height:28px;line-height:28px">▶</span></div><div class="bell"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#211D26" stroke-width="1.6" stroke-linecap="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><i></i></div></div>
+        <p class="muted" style="text-align:center;margin-top:24px;font-size:14px">Total do mês · 3 faturas</p>
+        <div style="display:flex;justify-content:center;margin-top:4px"><div class="money" style="font-size:44px;line-height:48px"><span class="cur" style="font-size:16px">R$</span>1.284<span class="cents">,60</span></div></div>
+        <div style="display:flex;justify-content:center;margin-top:8px"><span class="delta">▼ R$ 96,20 vs. novembro</span></div>
+        <div class="bars"><div style="height:62%"></div><div style="height:48%"></div><div style="height:74%"></div><div style="height:58%"></div><div style="height:80%"></div><div class="proj" style="height:70%"></div><div class="proj" style="height:52%"></div></div>
+        <div class="axis"><span>jun</span><span>jul</span><span>ago</span><span>set</span><span>out</span><span>nov</span><span>dez</span></div>
+        <div class="list">
+          <h4>Próximos 14 dias <span class="muted" style="font-weight:500;font-size:13px">Ver tudo</span></h4>
+          <div class="item"><div class="logo" style="background:#E50914">N</div><div><div class="t">Netflix</div><div class="m">12/12 · Roxinho</div></div><div class="val">R$ 55,90</div></div>
+          <div class="item"><div class="logo" style="background:#6A4DF5">R</div><div><div class="t">Fatura Roxinho</div><div class="m">vence em 3 dias · 05/12</div></div><div class="val">R$ 842,17<small><span class="badge b-closed" style="height:18px;padding:0 6px;font-size:10px">Fechada</span></small></div></div>
+          <div class="item"><div class="logo dashed">S</div><div><div class="t">Spotify</div><div class="m">28/12 · previsto</div></div><div class="val muted">R$ 21,90</div></div>
+        </div>
+      </div>
+      <div class="nav"><div class="fab">+</div><span class="on"><i class="dot"></i>Início</span><span><i class="dot"></i>Cartões</span><span><i class="dot"></i>Assinaturas</span><span><i class="dot"></i>Calendário</span></div>
+    </div>
+
+    <div class="desk">
+      <aside class="side">
+        <div class="logo-w">fin<b>flow</b></div>
+        <a><i></i>Início</a><a class="on"><i></i>Cartões</a><a><i></i>Assinaturas</a><a><i></i>Despesas</a><a><i></i>Calendário</a>
+      </aside>
+      <div class="main">
+        <div class="inv-head">
+          <div><p class="crumbs">Cartões › Roxinho</p><div style="display:flex;gap:12px;align-items:center"><span style="font:600 32px/38px var(--display);letter-spacing:-.03em">Fatura de dezembro</span><span class="badge b-closed">▤ Fechada</span></div></div>
+          <div class="seg"><span>◀ nov</span><span class="on">dez</span><span>jan ▶</span></div>
+        </div>
+        <div class="inv-grid">
+          <div class="card">
+            <h3>Cobranças <span class="muted" style="font:500 13px/1 var(--sans)">8 itens</span></h3>
+            <div class="item"><div class="logo" style="background:#1DB954">S</div><div><div class="t">Spotify</div><div class="m">28/10 · Música</div></div><div class="val">R$ 21,90</div></div>
+            <div class="item"><div class="logo" style="background:#E50914">N</div><div><div class="t">Netflix</div><div class="m">12/11 · Streaming</div></div><div class="val">R$ 55,90</div></div>
+            <div class="item"><div class="logo" style="background:#211D26">NB</div><div><div class="t">Notebook</div><div class="m">20/11 · Compras · 1/6</div></div><div class="val">R$ 200,00</div></div>
+            <div class="item"><div class="logo" style="background:#0B83C4">IC</div><div><div class="t">iCloud 200 GB</div><div class="m">22/11 · Nuvem</div></div><div class="val">R$ 14,90</div></div>
+            <div class="item"><div class="logo" style="background:#087A45">↺</div><div><div class="t">Estorno</div><div class="m">23/11 · ajuste</div></div><div class="val" style="color:var(--pos-700)">−R$ 14,90</div></div>
+          </div>
+          <div style="display:grid;gap:20px;align-content:start">
+            <div class="card">
+              <p class="muted" style="font-size:14px">Valor que falta pagar</p>
+              <div class="money" style="font-size:48px;line-height:52px;margin-top:6px"><span class="cur" style="font-size:16px">R$</span>742<span class="cents">,17</span></div>
+              <div class="progress"><i></i></div>
+              <p class="muted" style="font-size:13px">R$ 100,00 pagos de R$ 842,17</p>
+              <div style="display:flex;gap:8px;margin-top:16px"><button class="btn primary" style="flex:1;justify-content:center">Registrar pagamento</button></div><p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Vence em 3 dias</p>
+            </div>
+            <div class="card">
+              <div class="kv"><span>Fechamento</span><span class="tnum">25/11/2026</span></div>
+              <div class="kv"><span>Vencimento</span><span class="tnum">05/12/2026</span></div>
+              <div class="kv"><span>Limite usado</span><span class="tnum">R$ 1.177,80 / 5.000</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DARK -->
+  <section class="dark">
+    <div class="dcard"><p class="muted" style="font-size:14px">Modo escuro · total do mês</p><div class="money" style="font-size:40px;line-height:46px;margin-top:6px"><span class="cur" style="color:var(--ink-400)">R$</span>1.284<span class="cents">,60</span></div><div class="row" style="margin-top:20px"><button class="btn primary">Pagar fatura</button><button class="btn tonal">Detalhes</button></div></div>
+    <div class="dcard"><p style="font:600 16px/22px var(--sans)">Status no escuro</p><div class="row" style="margin-top:14px"><span class="badge b-over">⚠ Vencida</span><span class="badge b-paid">✓ Paga</span></div><p class="muted" style="font-size:14px;margin-top:14px">Superfícies sobem de tom em vez de usar sombra.</p></div>
+    <div class="dcard"><p style="font:600 16px/22px var(--sans)">Contraste medido</p><p class="muted" style="font-size:14px;margin-top:10px">Texto 17,4:1 · secundário 7,6:1 · link iris-300 8,7:1 · botão 7,0:1</p></div>
+  </section>
+
+  <!-- DO / DON'T -->
+  <section class="panel notes">
+    <div><h2>Levar da referência</h2><ul class="do">
+      <li>Hero centrado com título enorme e apertado (tracking negativo) e um subtítulo curto</li>
+      <li>Botões e chips em pílula; CTA primário + secundário tonal lado a lado</li>
+      <li>Cards brancos com borda de 1 px quase invisível em vez de sombra</li>
+      <li>Valor monetário gigante com centavos menores; barras com gradiente suave</li>
+      <li>Um bloco escuro de contraste por página para mudar o ritmo</li>
+    </ul></div>
+    <div><h2>Não levar</h2><ul class="dont">
+      <li>Fontes, logotipos, imagens e textos da marca de referência (proprietários)</li>
+      <li>Lilás claro com texto branco no botão primário (2,75:1 — reprova no AA)</li>
+      <li>Linguagem de investimento/DeFi: o FinFlow fala de faturas e assinaturas</li>
+      <li>Excesso de mockups de celular: o produto é web responsivo</li>
+      <li>Banner de cookies e modais que cobrem o conteúdo principal</li>
+    </ul></div>
+  </section>
+
+  <footer><span>FinFlow — prancha do briefing visual v1</span><span>Tokens: DESIGN.md · Contexto: docs/VISUAL_BRIEF.md</span></footer>
+</main>
+</body>
+</html>

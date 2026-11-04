@@ -97,14 +97,16 @@ Módulos: `invoices` (núcleo: ciclo de fatura, cobranças, pagamentos), `cards`
 
 ## Documentação
 
-| Documento                                                                                 | Conteúdo                                                                  |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [`docs/PRD.md`](docs/PRD.md)                                                              | Visão, personas, escopo, métricas, roadmap                                |
-| [`docs/SRS.md`](docs/SRS.md)                                                              | Requisitos funcionais e não funcionais, regras de negócio (RN-\*)         |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)                                            | Stack, infraestrutura, custos, CI/CD e ADRs                               |
-| [`docs/SOFTWARE_ARCHITECTURE.md`](docs/SOFTWARE_ARCHITECTURE.md)                          | C4, módulos, camadas, domínio, preocupações transversais, testes          |
-| [`docs/DATABASE.md`](docs/DATABASE.md)                                                    | Modelagem, dicionário de dados, constraints, consultas, migrações         |
-| [`docs/API_SPEC.md`](docs/API_SPEC.md) · [`docs/api/openapi.yaml`](docs/api/openapi.yaml) | Server Actions, DTOs, erros, rotas HTTP                                   |
-| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)                                            | Google, Resend, Neon, Vercel, Upstash, Sentry, R2, segredos, LGPD         |
-| [`docs/FLOW_MAP.md`](docs/FLOW_MAP.md)                                                    | Navegação, jornadas e fluxos                                              |
-| [`docs/CRIPTENV.md`](docs/CRIPTENV.md)                                                    | Secrets de desenvolvimento via CriptEnv em container + relatório de teste |
+| Documento                                                                                 | Conteúdo                                                                                                     |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [`docs/PRD.md`](docs/PRD.md)                                                              | Visão, personas, escopo, métricas, roadmap                                                                   |
+| [`docs/SRS.md`](docs/SRS.md)                                                              | Requisitos funcionais e não funcionais, regras de negócio (RN-\*)                                            |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)                                            | Stack, infraestrutura, custos, CI/CD e ADRs                                                                  |
+| [`docs/SOFTWARE_ARCHITECTURE.md`](docs/SOFTWARE_ARCHITECTURE.md)                          | C4, módulos, camadas, domínio, preocupações transversais, testes                                             |
+| [`docs/DATABASE.md`](docs/DATABASE.md)                                                    | Modelagem, dicionário de dados, constraints, consultas, migrações                                            |
+| [`docs/API_SPEC.md`](docs/API_SPEC.md) · [`docs/api/openapi.yaml`](docs/api/openapi.yaml) | Server Actions, DTOs, erros, rotas HTTP                                                                      |
+| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)                                            | Google, Resend, Neon, Vercel, Upstash, Sentry, R2, segredos, LGPD                                            |
+| [`docs/FLOW_MAP.md`](docs/FLOW_MAP.md)                                                    | Navegação, jornadas e fluxos                                                                                 |
+| [`docs/CRIPTENV.md`](docs/CRIPTENV.md)                                                    | Secrets de desenvolvimento via CriptEnv em container + relatório de teste                                    |
+| [`DESIGN.md`](DESIGN.md)                                                                  | Design system: princípios, tokens (cor, tipografia, espaço, forma), Tailwind v4, componentes, acessibilidade |
+| [`docs/VISUAL_BRIEF.md`](docs/VISUAL_BRIEF.md)                                            | Briefing visual: análise da referência, direção visual, prancha e telas prioritárias                         |
