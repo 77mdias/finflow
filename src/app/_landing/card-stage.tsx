@@ -33,6 +33,7 @@ const LAYOUTS: Record<"row" | "grid", Pose[]> = {
   ],
 };
 const ROW_MIN_ASPECT = 2;
+const LITE_MAX_WIDTH = 768; // palco mais estreito que isso carrega as versões -mobile dos modelos
 const PIXEL_BUDGET = 2_600_000; // teto de pixels do canvas: largura total com DPR 2 pesaria no preenchimento
 
 const ENTRANCE_MS = 1300;
@@ -116,13 +117,18 @@ export function CardStage() {
 }
 
 async function mountScene(host: HTMLDivElement): Promise<Scene> {
+  // Palco estreito (celular) ou economia de dados ligada: versão leve de cada cartão
+  // (~350 KB em vez de ~3,7 MB; gerada por scripts/optimize-glb.sh).
+  const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+  const lite = host.clientWidth < LITE_MAX_WIDTH || saveData === true;
   // Os modelos são o maior peso da página: baixa em paralelo com o three.js, não depois dele.
-  const downloads = MODELS.map(({ url }) =>
-    fetch(url).then((res) => {
-      if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  const downloads = MODELS.map(({ url }) => {
+    const src = lite ? url.replace(/\.glb$/, "-mobile.glb") : url;
+    return fetch(src).then((res) => {
+      if (!res.ok) throw new Error(`${src}: HTTP ${res.status}`);
       return res.arrayBuffer();
-    }),
-  );
+    });
+  });
   for (const d of downloads) d.catch(() => undefined); // o erro é tratado por cartão, mais abaixo
 
   const [THREE, { GLTFLoader }, { MeshoptDecoder }, { RoomEnvironment }] = await Promise.all([
