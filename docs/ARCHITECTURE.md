@@ -45,7 +45,7 @@ Alternativas consideradas:
 | Formulários | **React Hook Form** + **Zod** | Mesmo schema valida cliente e servidor |
 | Datas | **date-fns** + **date-fns-tz** (ou `Temporal` quando estável) | Aritmética de datas sem horário, fusos |
 | Dinheiro | Inteiros em centavos + helper `Money` próprio; `Intl.NumberFormat` para exibição | Sem erros de ponto flutuante |
-| ORM | **Prisma 7** (`prisma-client` + driver adapter `@prisma/adapter-neon`; Prisma Migrate) | Schema declarativo, migrações, tipos gerados; cliente sem engine binária |
+| ORM | **Prisma 7** (`prisma-client` + driver adapter `@prisma/adapter-pg`; Prisma Migrate) | Schema declarativo, migrações, tipos gerados; cliente sem engine binária; o mesmo driver `pg` atende Neon (endpoint pooled) e Postgres local |
 | Banco | **PostgreSQL 16** (Neon) | Relacional, transações, constraints, índices parciais |
 | Autenticação | **Better Auth** (adapter Prisma, plugins `magicLink` e `oAuthProxy`) — magic link + Google | Sem senha para gerenciar; sessão em banco; projeto ativo (o Auth.js passou a ser mantido pelo time do Better Auth, em modo manutenção) |
 | E-mail | **Resend** + **React Email** | Templates em JSX; free tier 3k/mês e 100/dia |

@@ -184,7 +184,7 @@ sequenceDiagram
 |---|---|
 | Projeto | `finflow`, região `aws-sa-east-1`, Postgres 16 |
 | Branches | `main` (produção), `staging`, `preview/pr-<n>` (efêmeros, copy-on-write de `main`) |
-| Conexão da aplicação | Endpoint **pooled** (`…-pooler…`) via `@prisma/adapter-neon` — adequado a serverless (sem esgotar conexões) |
+| Conexão da aplicação | Endpoint **pooled** (`…-pooler…`) via `@prisma/adapter-pg` — o PgBouncer do Neon evita esgotar conexões em serverless |
 | Conexão de migração | Endpoint **direto** (`DIRECT_URL`) em `prisma.config.ts` |
 | Escala a zero | Compute suspende após inatividade; 1ª query após suspensão tem latência extra (centenas de ms). Aceitável no MVP; desativar *autosuspend* em `main` ao migrar para plano pago |
 | Backups | PITR nativo (janela depende do plano) + dump lógico diário (§8) |
