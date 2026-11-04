@@ -125,11 +125,7 @@ function Hero() {
       </div>
 
       <div className="relative mt-14 animate-hero-in [animation-delay:150ms]">
-        <div
-          role="img"
-          aria-label="Quatro cartões de crédito em 3D abertos em leque, ao lado de um resumo de fatura do FinFlow"
-          className="relative h-[300px] overflow-hidden rounded-2xl bg-surface-subtle shadow-hairline sm:h-[440px] lg:h-[560px] 2xl:h-[640px]"
-        >
+        <div className="relative h-[360px] overflow-hidden rounded-2xl bg-surface-subtle shadow-hairline sm:h-[440px] lg:h-[560px] 2xl:h-[640px]">
           <div
             aria-hidden
             className="absolute inset-0 bg-[radial-gradient(55%_60%_at_50%_45%,var(--tonal),transparent)]"
@@ -148,7 +144,7 @@ function InvoicePreview() {
   return (
     <div
       aria-hidden
-      className="mt-4 rounded-xl bg-surface p-5 text-left shadow-lg sm:absolute sm:bottom-6 sm:left-6 sm:mt-0 sm:w-[300px]"
+      className="mx-auto mt-4 max-w-[360px] rounded-xl bg-surface p-5 text-left shadow-lg xl:absolute xl:bottom-6 xl:left-6 xl:mt-0 xl:w-[300px]"
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-body-sm text-fg-muted">Fatura de dezembro</p>
@@ -172,7 +168,7 @@ function ReminderPreview() {
   return (
     <div
       aria-hidden
-      className="absolute top-6 right-6 hidden items-center gap-3 rounded-full bg-surface py-2 pr-4 pl-2 text-left shadow-md md:flex"
+      className="absolute top-6 right-6 hidden items-center gap-3 rounded-full bg-surface py-2 pr-4 pl-2 text-left shadow-md xl:flex"
     >
       <span className="grid size-8 place-items-center rounded-full bg-tonal text-tonal-fg">
         <BellRing size={16} strokeWidth={1.5} />
