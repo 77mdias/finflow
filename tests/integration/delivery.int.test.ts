@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { Webhook } from "svix";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -24,7 +26,7 @@ import { at, db, mail, makeUser, resetDatabaseBeforeEach } from "../support/db";
 
 resetDatabaseBeforeEach();
 
-const WEBHOOK_SECRET = `whsec_${Buffer.from("finflow-test-webhook-secret-123").toString("base64")}`;
+const WEBHOOK_SECRET = `whsec_${randomBytes(24).toString("base64")}`;
 let current: SessionUser | null = null;
 
 beforeAll(() => {
