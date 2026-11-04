@@ -71,3 +71,8 @@ ALTER TABLE notification_preferences
 -- notifications: fila de reenvio ------------------------------------------
 CREATE INDEX notifications_retry_queue
   ON notifications (created_at) WHERE status = 'FAILED' AND attempts < 4;
+
+-- job_runs: no máximo uma execução RUNNING por job (trava contra concorrência,
+-- segura com pool de conexões; execuções presas são liberadas pela aplicação) --
+CREATE UNIQUE INDEX job_runs_one_running_per_job
+  ON job_runs (job) WHERE status = 'RUNNING';

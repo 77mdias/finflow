@@ -453,6 +453,7 @@ model NotificationPreference {
   userId                 String   @id @map("user_id") @db.Uuid
   emailEnabled           Boolean  @default(true) @map("email_enabled")
   inAppEnabled           Boolean  @default(true) @map("in_app_enabled")
+  invoiceDueEnabled      Boolean  @default(true) @map("invoice_due_enabled")
   invoiceDueDaysBefore   Int      @default(3) @map("invoice_due_days_before") @db.SmallInt
   subscriptionDaysBefore Int?     @default(1) @map("subscription_days_before") @db.SmallInt // null = desativado
   subscriptionMinCents   BigInt   @default(0) @map("subscription_min_cents")
