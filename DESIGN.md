@@ -267,17 +267,19 @@ Movimento **curto, suave e com propósito**: confirma uma ação, mostra de onde
 
 **Movimento reduzido** (`prefers-reduced-motion: reduce`): sem deslocamento, escala, contagem nem loops; entradas viram só `opacity` em 150 ms (ou nenhuma); molas viram troca instantânea. Testar as telas principais com a preferência ligada.
 
+**Exceção — hero da landing (decisão de produto, 04/11/2026):** o leque de cartões 3D tem flutuação contínua (loop sutil, ~0,04 de amplitude), entrada escalonada de baixo para cima, cartões arrastáveis que voltam com mola levemente elástica e virada com um toque. O loop pausa fora da tela; com movimento reduzido, não há loop, entrada nem mola.
+
 **Implementação:** micro-interações em CSS com os tokens da §5; revelar ao rolar, layout compartilhado e molas com `motion/react` (com `MotionConfig reducedMotion="user"`) em Client Components — nunca animar o carregamento inicial de dados de Server Components.
 
 ### 4.5 Breakpoints e largura
 
-| Nome   | Min  | Layout do app                                                      |
-| ------ | ---- | ------------------------------------------------------------------ |
-| `base` | 0    | 1 coluna, bottom nav + FAB                                         |
-| `sm`   | 640  | 1 coluna, cards em 2 colunas quando curtos                         |
-| `md`   | 768  | 2 colunas                                                          |
-| `lg`   | 1024 | Sidebar fixa (248 px) + conteúdo                                   |
-| `xl`   | 1280 | Conteúdo máx. **1120 px**; landing máx. **1040 px** de texto/cards |
+| Nome   | Min  | Layout do app                                                                                |
+| ------ | ---- | -------------------------------------------------------------------------------------------- |
+| `base` | 0    | 1 coluna, bottom nav + FAB                                                                   |
+| `sm`   | 640  | 1 coluna, cards em 2 colunas quando curtos                                                   |
+| `md`   | 768  | 2 colunas                                                                                    |
+| `lg`   | 1024 | Sidebar fixa (248 px) + conteúdo                                                             |
+| `xl`   | 1280 | Conteúdo máx. **1120 px**; landing em **largura total** (só blocos de texto limitam a linha) |
 
 ---
 

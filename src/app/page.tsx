@@ -26,7 +26,8 @@ import { CardStage } from "./_landing/card-stage";
 import { Reveal } from "./_landing/reveal";
 
 const REPO = "https://github.com/77mdias/finflow";
-const CONTAINER = "mx-auto w-full max-w-[1120px] px-4 sm:px-6 lg:px-10";
+// Largura total com as margens laterais do DESIGN §4.1; só blocos de texto limitam a largura (legibilidade).
+const CONTAINER = "w-full px-4 sm:px-6 lg:px-10";
 
 export default function HomePage() {
   return (
@@ -123,11 +124,11 @@ function Hero() {
         </div>
       </div>
 
-      <div className="relative mx-auto mt-14 max-w-[1040px] animate-hero-in [animation-delay:150ms]">
+      <div className="relative mt-14 animate-hero-in [animation-delay:150ms]">
         <div
           role="img"
           aria-label="Quatro cartões de crédito em 3D abertos em leque, ao lado de um resumo de fatura do FinFlow"
-          className="relative aspect-[3/2] overflow-hidden rounded-2xl bg-surface-subtle shadow-hairline sm:aspect-[16/9]"
+          className="relative h-[300px] overflow-hidden rounded-2xl bg-surface-subtle shadow-hairline sm:h-[440px] lg:h-[560px] 2xl:h-[640px]"
         >
           <div
             aria-hidden
@@ -191,7 +192,7 @@ function Stats() {
   ];
   return (
     <section aria-label="FinFlow em números" className={`${CONTAINER} mt-20 lg:mt-32`}>
-      <ul className="mx-auto grid max-w-[1040px] gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map(([Icon, value, text], i) => (
           <li key={value}>
             <Reveal index={i} className="h-full rounded-xl bg-surface p-6 shadow-hairline">
@@ -257,7 +258,7 @@ function Features() {
       <SectionHeading id="funcionalidades" title="Tudo o que sai dos seus cartões, num lugar só.">
         Quanto você vai pagar, quando e em qual cartão — respondido antes de a fatura chegar.
       </SectionHeading>
-      <ul className="mx-auto mt-12 grid max-w-[1040px] gap-4 sm:grid-cols-2 lg:mt-16 lg:grid-cols-3">
+      <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:mt-16 lg:grid-cols-3">
         {features.map(([Icon, title, text], i) => (
           <li key={title}>
             <Reveal index={i} className="h-full rounded-xl bg-surface p-6 shadow-hairline">
@@ -288,7 +289,7 @@ function OpenSource() {
   ];
   return (
     <section aria-labelledby="codigo-aberto" className={`${CONTAINER} theme-dark mt-20 lg:mt-32`}>
-      <Reveal className="mx-auto grid max-w-[1040px] items-center gap-10 rounded-2xl bg-surface p-6 text-fg ring-1 ring-border-strong sm:p-10 lg:grid-cols-[1.1fr_1fr] lg:gap-12 lg:p-14">
+      <Reveal className="grid items-center gap-10 rounded-2xl bg-surface p-6 text-fg ring-1 ring-border-strong sm:p-10 lg:grid-cols-[1.1fr_1fr] lg:gap-12 lg:p-14">
         <div>
           <p className="text-overline text-tonal-fg uppercase">Código aberto</p>
           <h2 id="codigo-aberto" className="mt-3 font-display text-display-sm text-balance">
@@ -404,7 +405,7 @@ function Pricing() {
       <SectionHeading id="planos" title="Comece grátis. Assine quando precisar de mais.">
         O código é aberto e o self-host não tem limites. Na nuvem, o plano Free cobre o essencial.
       </SectionHeading>
-      <ul className="mx-auto mt-12 grid max-w-[1040px] gap-4 lg:mt-16 lg:grid-cols-3">
+      <ul className="mt-12 grid gap-4 lg:mt-16 lg:grid-cols-3">
         {plans.map((plan, i) => (
           <li key={plan.name}>
             <Reveal
@@ -514,7 +515,7 @@ function Faq() {
       <SectionHeading id="perguntas" title="Perguntas frequentes">
         Se a sua dúvida não estiver aqui, abra uma issue no GitHub.
       </SectionHeading>
-      <Reveal className="mx-auto mt-12 max-w-[760px] divide-y divide-border rounded-xl bg-surface shadow-hairline">
+      <Reveal className="mt-12 divide-y divide-border rounded-xl bg-surface shadow-hairline">
         {items.map(([q, a]) => (
           <details key={q} className="group">
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-6 py-4 text-heading-sm transition-colors duration-150 hover:bg-surface-subtle [&::-webkit-details-marker]:hidden">
@@ -526,7 +527,7 @@ function Faq() {
                 className="shrink-0 text-fg-muted transition-transform duration-200 ease-out group-open:rotate-180"
               />
             </summary>
-            <p className="px-6 pb-5 text-body text-fg-muted">{a}</p>
+            <p className="max-w-[72ch] px-6 pb-5 text-body text-fg-muted">{a}</p>
           </details>
         ))}
       </Reveal>
