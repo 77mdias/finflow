@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 
 import { PLAN_LIMITS } from "@/shared/application/plan-limits";
 import { button } from "@/shared/ui/button";
+import { Logo } from "@/shared/ui/logo";
 import { MoneyDisplay } from "@/shared/ui/money-display";
 
 import { CardStage } from "./_landing/card-stage";
@@ -53,14 +54,6 @@ export default function HomePage() {
   );
 }
 
-function Wordmark() {
-  return (
-    <span className="font-display text-heading">
-      fin<span className="text-primary">flow</span>
-    </span>
-  );
-}
-
 function SiteHeader() {
   const nav = [
     ["#funcionalidades", "Funcionalidades"],
@@ -72,7 +65,7 @@ function SiteHeader() {
     <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur-md">
       <div className={`${CONTAINER} flex h-16 items-center justify-between gap-4`}>
         <Link href="/" aria-label="FinFlow, página inicial" className="rounded-md">
-          <Wordmark />
+          <Logo priority />
         </Link>
         <nav aria-label="Principal" className="hidden items-center gap-1 md:flex">
           {nav.map(([href, label]) => (
@@ -555,7 +548,7 @@ function SiteFooter() {
     <footer className="border-t border-border">
       <div className={`${CONTAINER} flex flex-col gap-6 py-10 sm:flex-row sm:items-start sm:justify-between`}>
         <div className="max-w-[460px]">
-          <Wordmark />
+          <Logo />
           <p className="mt-3 text-body-sm text-fg-muted">
             Código aberto sob a licença AGPL-3.0. As marcas exibidas nos cartões pertencem aos seus titulares;
             o FinFlow não é afiliado a nenhuma instituição financeira.
