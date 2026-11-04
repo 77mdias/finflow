@@ -19,6 +19,8 @@ load() {
   if [ -r "$file" ]; then
     value="$(tr -d '\r\n' < "$file")"
     export "$var=$value"
+  elif [ -e "$file" ]; then
+    echo "finflow: $file existe mas o uid $(id -u) não consegue ler — rode 'bash scripts/criptenv-setup.sh credentials' de novo" >&2
   fi
   unset "${var}_FILE" 2>/dev/null || true
 }

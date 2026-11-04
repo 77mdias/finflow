@@ -17,8 +17,12 @@ FROM node:24-bookworm-slim AS dev
 # O binário do CriptEnv é glibc (Debian/Ubuntu); imagens Alpine não são suportadas.
 COPY --from=criptenv /usr/local/bin/criptenv /usr/local/bin/criptenv
 
+# uid/gid 1000 = o usuário do host: o código montado (.:/app) e os secrets em .criptenv/ precisam
+# ser graváveis/legíveis pelo processo. shortcut: assume host com uid 1000; se o seu for outro, vire build arg.
 RUN corepack enable \
- && useradd --create-home --uid 10001 finflow \
+ && userdel --remove node \
+ && groupadd --gid 1000 finflow \
+ && useradd --create-home --uid 1000 --gid finflow finflow \
  && mkdir -p /app && chown finflow:finflow /app
 
 WORKDIR /app
@@ -33,6 +37,8 @@ COPY --chown=finflow:finflow prisma ./prisma
 RUN pnpm install --frozen-lockfile
 
 COPY --chown=finflow:finflow . .
+# .next fica fora do contexto (.dockerignore); sem ele na imagem, o volume do compose nasce com dono root.
+RUN mkdir -p .next
 COPY --chown=finflow:finflow --chmod=0755 docker/dev/entrypoint.sh /usr/local/bin/finflow-entrypoint
 
 EXPOSE 3000
