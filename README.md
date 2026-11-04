@@ -7,7 +7,7 @@ FinFlow é uma aplicação web para **controle pessoal de custos recorrentes**. 
 ## Status
 
 🛠️ **Backend do MVP implementado** (casos de uso, jobs, API HTTP, autenticação) com testes e CI/CD.
-🎨 **Frontend**: apenas um placeholder — a interface será construída em uma próxima fase.
+🎨 **Frontend**: landing page (`/`) e entrada por magic link (`/entrar`); as telas do app vêm a seguir.
 
 ## Stack
 
@@ -110,3 +110,7 @@ Módulos: `invoices` (núcleo: ciclo de fatura, cobranças, pagamentos), `cards`
 | [`docs/CRIPTENV.md`](docs/CRIPTENV.md)                                                    | Secrets de desenvolvimento via CriptEnv em container + relatório de teste                                    |
 | [`DESIGN.md`](DESIGN.md)                                                                  | Design system: princípios, tokens (cor, tipografia, espaço, forma), Tailwind v4, componentes, acessibilidade |
 | [`docs/VISUAL_BRIEF.md`](docs/VISUAL_BRIEF.md)                                            | Briefing visual: análise da referência, direção visual, prancha e telas prioritárias                         |
+
+## Licença e planos
+
+Código aberto sob a [AGPL-3.0](LICENSE). No **self-host** não há limites (`LIMITS_ENFORCED=false`, o padrão). Na nuvem, o plano **Free** segue os limites de [`PLAN_LIMITS`](src/shared/application/plan-limits.ts) (3 cartões e 15 assinaturas) e o **Pro** é ilimitado; exportar e excluir os próprios dados (LGPD) é sempre grátis.
