@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Card, Expense } from "@/generated/prisma/client";
+import type { Card, Expense, Prisma } from "@/generated/prisma/client";
 import { assertNotStale } from "@/shared/application/concurrency";
 import { type QueryContext, type UseCaseContext, todayOf } from "@/shared/application/context";
 import { day, iso, n } from "@/shared/application/dto";
@@ -12,7 +12,13 @@ import {
   MoneyInput,
   OptionalText,
 } from "@/shared/application/schemas";
-import { fromDbDate, toDbDate, type DateOnly } from "@/shared/domain/date-only";
+import {
+  addYearMonths,
+  fromDbDate,
+  toDbDate,
+  type DateOnly,
+  type YearMonth,
+} from "@/shared/domain/date-only";
 import { AppError } from "@/shared/domain/errors";
 import type { Tx } from "@/shared/infrastructure/db";
 
@@ -99,12 +105,14 @@ async function postInstallments(tx: Tx, expense: Expense, card: Card, today: Dat
   }
 }
 
-async function toExpenseDTO(tx: Tx | QueryContext["db"], e: Expense): Promise<ExpenseDTO> {
-  const charges = await tx.charge.findMany({
-    where: { expenseId: e.id },
-    include: { invoice: { select: { referenceMonth: true, status: true } } },
-    orderBy: { installmentNumber: "asc" },
-  });
+const SCHEDULE = {
+  include: { invoice: { select: { referenceMonth: true, status: true } } },
+  orderBy: { installmentNumber: "asc" },
+} as const;
+
+type ScheduledCharge = Prisma.ChargeGetPayload<typeof SCHEDULE>;
+
+function toDTO(e: Expense, charges: readonly ScheduledCharge[]): ExpenseDTO {
   return {
     id: e.id,
     description: e.description,
@@ -123,6 +131,10 @@ async function toExpenseDTO(tx: Tx | QueryContext["db"], e: Expense): Promise<Ex
       invoiceStatus: c.invoice.status,
     })),
   };
+}
+
+async function toExpenseDTO(tx: Tx | QueryContext["db"], e: Expense): Promise<ExpenseDTO> {
+  return toDTO(e, await tx.charge.findMany({ where: { expenseId: e.id }, ...SCHEDULE }));
 }
 
 /** RF-030 / RF-031 */
@@ -172,7 +184,8 @@ export async function updateExpense(
   if (financial && (await lockedInstallments(ctx.tx, e.id)) > 0) {
     throw new AppError("INVOICE_LOCKED", "Há parcelas em faturas fechadas. Lance um ajuste na fatura.");
   }
-  const card = await activeCard(ctx.tx, ctx.user.id, input.cardId ?? e.cardId);
+  // Só o relançamento exige cartão ativo: descrição/categoria podem mudar em cartão arquivado.
+  const card = financial ? await activeCard(ctx.tx, ctx.user.id, input.cardId ?? e.cardId) : null;
   const updated = await ctx.tx.expense.update({
     where: { id: e.id },
     data: {
@@ -188,7 +201,7 @@ export async function updateExpense(
   const today = todayOf(ctx);
   if (financial) {
     await removeCharges(ctx.tx, { userId: ctx.user.id, expenseId: e.id }, today);
-    await postInstallments(ctx.tx, updated, card, today);
+    await postInstallments(ctx.tx, updated, card!, today);
   } else if (regenerate) {
     // Descrição/categoria: atualiza o snapshot apenas nas parcelas de faturas abertas.
     const open = await ctx.tx.charge.findMany({ where: { expenseId: e.id, invoice: { status: "OPEN" } } });
@@ -224,14 +237,37 @@ export async function deleteExpense(ctx: UseCaseContext, input: z.infer<typeof D
   return { deleted: true, affectedInvoices: affected };
 }
 
+/** RF-033: despesas por data da compra (mais recentes primeiro), opcionalmente de um mês e cartão. */
 export async function listExpenses(
   ctx: QueryContext,
-  filters: { cardId?: string } = {},
+  filters: { cardId?: string; month?: YearMonth } = {},
 ): Promise<ExpenseDTO[]> {
   const rows = await ctx.db.expense.findMany({
-    where: { userId: ctx.user.id, ...(filters.cardId ? { cardId: filters.cardId } : {}) },
-    orderBy: { purchaseDate: "desc" },
-    take: 100,
+    where: {
+      userId: ctx.user.id,
+      ...(filters.cardId ? { cardId: filters.cardId } : {}),
+      ...(filters.month
+        ? {
+            purchaseDate: {
+              gte: toDbDate(`${filters.month}-01` as DateOnly),
+              lt: toDbDate(`${addYearMonths(filters.month, 1)}-01` as DateOnly),
+            },
+          }
+        : {}),
+    },
+    orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
+    // Um mês é limitado por natureza e a tela soma o mês inteiro; sem mês, só as 100 mais recentes.
+    ...(filters.month ? {} : { take: 100 }),
   });
-  return Promise.all(rows.map((e) => toExpenseDTO(ctx.db, e)));
+  // Uma consulta para todas as parcelas, em vez de uma por despesa.
+  const charges = await ctx.db.charge.findMany({
+    where: { expenseId: { in: rows.map((e) => e.id) } },
+    ...SCHEDULE,
+  });
+  return rows.map((e) =>
+    toDTO(
+      e,
+      charges.filter((c) => c.expenseId === e.id),
+    ),
+  );
 }

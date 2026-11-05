@@ -1,4 +1,4 @@
-import { CreditCard, House, Repeat } from "lucide-react";
+import { CalendarDays, CreditCard, House, Repeat, ShoppingBag } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -17,12 +17,15 @@ import { NavLink } from "./nav-link";
 import { QuickAdd } from "./quick-add";
 import { SignOutButton } from "./sign-out-button";
 
-// shortcut: Calendário entra na navegação junto com a tela dele.
-const NAV: { href: Route; label: string; Icon: typeof House }[] = [
-  { href: "/dashboard", label: "Início", Icon: House },
-  { href: "/cards", label: "Cartões", Icon: CreditCard },
-  { href: "/subscriptions", label: "Assinaturas", Icon: Repeat },
+// DESIGN §6.9: a sidebar tem todas as áreas; a bottom nav, 4 itens (Despesas fica no painel e na sidebar).
+const NAV: { href: Route; label: string; Icon: typeof House; mobile: boolean }[] = [
+  { href: "/dashboard", label: "Início", Icon: House, mobile: true },
+  { href: "/cards", label: "Cartões", Icon: CreditCard, mobile: true },
+  { href: "/subscriptions", label: "Assinaturas", Icon: Repeat, mobile: true },
+  { href: "/expenses", label: "Despesas", Icon: ShoppingBag, mobile: false },
+  { href: "/calendar", label: "Calendário", Icon: CalendarDays, mobile: true },
 ];
+const MOBILE_NAV = NAV.filter((n) => n.mobile);
 
 /**
  * Área autenticada (DESIGN §6.9): sidebar de 248 px a partir de `lg`; no celular, barra no topo e
@@ -84,9 +87,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       >
         <div
           className="mx-auto grid h-16 max-w-md"
-          style={{ gridTemplateColumns: `repeat(${NAV.length}, 1fr)` }}
+          style={{ gridTemplateColumns: `repeat(${MOBILE_NAV.length}, 1fr)` }}
         >
-          {NAV.map(({ href, label, Icon }) => (
+          {MOBILE_NAV.map(({ href, label, Icon }) => (
             <NavLink
               key={href}
               href={href}
