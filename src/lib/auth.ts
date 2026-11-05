@@ -18,6 +18,12 @@ import { magicLinkEmail } from "@/modules/notifications";
 
 const DAY = 60 * 60 * 24;
 
+/** O login com Google só existe (e só aparece nas telas) quando o OAuth está configurado. */
+export function googleEnabled(): boolean {
+  const e = env();
+  return Boolean(e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET);
+}
+
 function createAuth() {
   const e = env();
   const google =

@@ -107,7 +107,7 @@ function Hero() {
           vencimento e mostra os próximos 12 meses. Sem conectar nenhum cartão real.
         </p>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-          <Link href="/entrar" className={button("primary", "lg")}>
+          <Link href="/cadastro" className={button("primary", "lg")}>
             Começar grátis
             <ArrowRight aria-hidden size={20} strokeWidth={1.5} />
           </Link>
@@ -454,7 +454,7 @@ function Pricing() {
                 )}
               </div>
               {plan.cta ? (
-                <Link href="/entrar" className={`${button(plan.cta.variant, "lg")} mt-8 w-full`}>
+                <Link href="/cadastro" className={`${button(plan.cta.variant, "lg")} mt-8 w-full`}>
                   {plan.cta.label}
                 </Link>
               ) : (
@@ -534,7 +534,7 @@ function FinalCta() {
         <p className="mt-4 text-body-lg text-fg-muted">
           Leva menos de um minuto e não pede nenhum dado bancário.
         </p>
-        <Link href="/entrar" className={`${button("primary", "lg")} mt-8`}>
+        <Link href="/cadastro" className={`${button("primary", "lg")} mt-8`}>
           Começar grátis
           <ArrowRight aria-hidden size={20} strokeWidth={1.5} />
         </Link>
