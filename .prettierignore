@@ -8,3 +8,9 @@ docs
 
 # Captura de site usada só como referência visual
 aave.com
+
+# Estado local de ferramentas de agentes
+.claude-flow
+.swarm
+agentdb.rvf*
+ruvector.db
