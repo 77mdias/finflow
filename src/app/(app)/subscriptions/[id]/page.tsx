@@ -14,7 +14,7 @@ import { button } from "@/shared/ui/button";
 import { brl, fullDate } from "@/shared/ui/format";
 import { MoneyDisplay } from "@/shared/ui/money-display";
 
-import { listCards } from "@/modules/cards";
+import { listCardOptions } from "@/modules/cards";
 import { listCategories } from "@/modules/categories";
 import { getSubscription } from "@/modules/subscriptions";
 import {
@@ -57,7 +57,7 @@ export default async function SubscriptionPage({ params }: { params: Promise<{ i
   const ctx = { db: prisma(), user, clock: systemClock };
   const [sub, cards, categories] = await Promise.all([
     getSubscription(ctx, id),
-    listCards(ctx),
+    listCardOptions(ctx),
     listCategories(ctx.db, user.id),
   ]).catch((e: unknown) => {
     if (isAppError(e) && e.code === "NOT_FOUND") notFound();
@@ -66,7 +66,6 @@ export default async function SubscriptionPage({ params }: { params: Promise<{ i
   const today = todayOf(ctx);
   const [eventLabel, eventValue] = nextEvent(sub, today);
   const editable = sub.status !== "CANCELED";
-  const cardOptions = cards.map((c) => ({ id: c.id, name: c.nickname }));
   // Preço vigente: o último com início até hoje; os seguintes são mudanças agendadas.
   const prices = [...sub.priceHistory].reverse();
   const current = prices.find((p) => p.effectiveFrom <= today);
@@ -148,7 +147,7 @@ export default async function SubscriptionPage({ params }: { params: Promise<{ i
           <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-6">
             {editable && <ChangePriceButton id={sub.id} amountCents={sub.amountCents} today={today} />}
             {editable && cards.some((c) => c.id !== sub.card.id) && (
-              <ChangeCardButton id={sub.id} cardId={sub.card.id} cards={cardOptions} />
+              <ChangeCardButton id={sub.id} cardId={sub.card.id} cards={cards} />
             )}
             {sub.manageUrl && (
               <a

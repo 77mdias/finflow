@@ -6,8 +6,11 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import type { BillingCycle, SubscriptionStatus } from "@/generated/prisma/enums";
 import { button } from "@/shared/ui/button";
 import { Dialog, DialogActions } from "@/shared/ui/dialog";
+import { parseMoney } from "@/shared/domain/money";
 import { describedBy, Field, FIELD, FormError, MoneyInput } from "@/shared/ui/field";
+import { brl } from "@/shared/ui/format";
 
+import { monthlyEquivalent } from "../../domain/pricing";
 import { createSubscription, updateSubscription } from "../actions";
 import { CYCLES } from "./subscription-bits";
 
@@ -28,6 +31,10 @@ export interface EditableSubscription {
   notes: string | null;
 }
 
+/** FLOW_MAP §5: "Assinatura adicionada · +R$ 55,90/mês" (custo mensal equivalente). */
+const addedMessage = (amount: string, cycle: BillingCycle) =>
+  `Assinatura adicionada · +${brl(Number(monthlyEquivalent(parseMoney(amount), cycle)))}/mês`;
+
 /** "netflix.com/cancel" → "https://netflix.com/cancel"; o schema só aceita http(s). */
 const withScheme = (url: string) => (url && !/^https?:\/\//i.test(url) ? `https://${url}` : url);
 
@@ -35,18 +42,21 @@ const withScheme = (url: string) => (url && !/^https?:\/\//i.test(url) ? `https:
  * Formulário de assinatura (FLOW_MAP §5, RF-020/RF-026). Na edição, valor e cartão ficam de fora:
  * têm ações próprias, porque mudam o histórico de preço e o destino das próximas cobranças.
  */
-function SubscriptionForm({
+export function SubscriptionForm({
   sub,
   cards,
   categories,
   today,
   onDone,
+  onSaved,
 }: {
   sub?: EditableSubscription;
   cards: Option[];
   categories: Option[];
   today: string;
   onDone: () => void;
+  /** Recebe o texto do aviso de confirmação (usado no Novo lançamento). */
+  onSaved?: (message: string) => void;
 }) {
   const [v, setV] = useState({
     name: sub?.name ?? "",
@@ -122,7 +132,10 @@ function SubscriptionForm({
           notes: v.notes,
         });
     setBusy(false);
-    if (res.ok) return onDone();
+    if (res.ok) {
+      onSaved?.(sub ? "Assinatura atualizada" : addedMessage(v.amount, v.cycle));
+      return onDone();
+    }
     setErrors(res.error.fieldErrors ?? {});
     setMessage(res.error.code === "VALIDATION_ERROR" ? null : res.error.message);
   }

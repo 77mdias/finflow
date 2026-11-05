@@ -10,7 +10,7 @@ import { button } from "@/shared/ui/button";
 import { brl } from "@/shared/ui/format";
 import { MoneyDisplay } from "@/shared/ui/money-display";
 
-import { listCards } from "@/modules/cards";
+import { listCardOptions } from "@/modules/cards";
 import { NewCardButton } from "@/modules/cards/ui/components/card-form";
 import { listCategories } from "@/modules/categories";
 import { listSubscriptions, type SubscriptionDTO } from "@/modules/subscriptions";
@@ -71,7 +71,7 @@ export default async function SubscriptionsPage({
   const ctx = { db: prisma(), user, clock: systemClock };
   const [subs, cards, categories, params] = await Promise.all([
     listSubscriptions(ctx),
-    listCards(ctx),
+    listCardOptions(ctx),
     listCategories(ctx.db, user.id),
     searchParams,
   ]);
@@ -92,7 +92,7 @@ export default async function SubscriptionsPage({
   const shown = live.filter((s) => status === "ALL" || s.status === status).sort(SORTS[sort].by);
 
   const lists = {
-    cards: cards.map((c) => ({ id: c.id, name: c.nickname })),
+    cards,
     categories: categories.map((c) => ({ id: c.id, name: c.name })),
     today,
   };
