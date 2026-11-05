@@ -18,8 +18,8 @@ const PROVIDERS: Record<OAuthProvider, { name: string; Mark: ComponentType }> = 
   discord: { name: "Discord", Mark: DiscordMark },
 };
 
-// shortcut: todos voltam para "/" até existirem /dashboard e /onboarding (RF-003).
-const REDIRECTS = { callbackURL: "/", errorCallbackURL: "/entrar" };
+// shortcut: conta nova também vai para o painel até existir /onboarding (RF-003, RF-080).
+const REDIRECTS = { callbackURL: "/dashboard", errorCallbackURL: "/entrar" };
 
 const FIELD =
   "mt-1.5 h-11 w-full rounded-md bg-surface-subtle px-4 text-body text-fg transition-colors duration-150 " +

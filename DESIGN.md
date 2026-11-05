@@ -114,7 +114,7 @@ O enum `CARD_COLORS` do backend mapeia para gradientes (ângulo 135°). Texto so
 - **Série principal:** gradiente vertical `iris-500 → iris-200` (topo → base), como barras de "ganho" — leitura imediata de crescimento.
 - **Previsto:** mesma cor com 45% de opacidade **e** hachura diagonal de 1 px (`iris-300`) — nunca só a opacidade.
 - **Por cartão:** usar a cor de início do gradiente do cartão (§2.3), na ordem dos cartões.
-- **Categorias:** sequência `iris-500, #4F8BFF, #12B76A, #F5A524, #F04438, #DB2777, #0B83C4, #64748B`, máximo 7 + "Outros" (`ink-200`).
+- **Categorias:** tokens `--chart-cat-1` … `--chart-cat-7`, nesta ordem: `iris-500 #8571FF`, `#12B76A` (escuro: `#10A865`), `#0B83C4`, `#DB2777`, `#D97706`, `#4F8BFF`, `#F04438`; máximo 7 + "Outros" (`--chart-cat-other`: `ink-200`, escuro `ink-600`). A ordem e os tons foram validados para daltonismo nos dois temas (vizinhos com ΔE ≥ 9 em deuteranopia/protanopia e ≥ 20 em visão normal). A sequência anterior punha `iris-500` ao lado de `#4F8BFF` (ΔE 1,9 em deuteranopia) e tinha um âmbar `#F5A524` claro demais. O verde fica abaixo de 3:1 sobre branco, por isso cada fatia tem sempre nome e valor ao lado.
 - Grade horizontal tracejada `--border-strong`, sem grade vertical; eixos em `--fg-muted` 12 px; valores em `tabular-nums`.
 
 ---

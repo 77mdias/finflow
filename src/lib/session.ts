@@ -33,6 +33,12 @@ export function setSessionProvider(p: SessionProvider | undefined): void {
   provider = p ?? betterAuthSession;
 }
 
+/** Usuário com sessão ativa, ou null (conta em exclusão conta como sem sessão): para páginas que redirecionam. */
+export async function currentUser(): Promise<SessionUser | null> {
+  const user = await provider();
+  return user && !user.deletedAt ? user : null;
+}
+
 /**
  * Barreira real de autenticação (o `proxy.ts` faz só checagem otimista).
  * Conta em período de exclusão só pode reativar (`allowDeleted`).

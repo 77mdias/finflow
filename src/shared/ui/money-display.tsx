@@ -1,4 +1,4 @@
-const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+import { BRL } from "./format";
 
 const SIZES = {
   display: "text-display",
