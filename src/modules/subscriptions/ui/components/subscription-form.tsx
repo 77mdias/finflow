@@ -90,6 +90,10 @@ function SubscriptionForm({
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    // Na edição a data só vai ao servidor se mudou; apagada, ela seria ignorada em silêncio.
+    if (sub && showNext && !v.nextChargeDate) {
+      return setErrors((prev) => ({ ...prev, nextChargeDate: ["Informe a próxima cobrança"] }));
+    }
     setBusy(true);
     const res = sub
       ? await updateSubscription({
