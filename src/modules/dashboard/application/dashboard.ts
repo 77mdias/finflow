@@ -257,6 +257,8 @@ export async function getDashboard(ctx: QueryContext, month?: string) {
     committedThisMonthCents: committed,
     previousMonthCents: previous,
     recurringMonthlyCents: n(recurring),
+    // RF-055: próximos 12 ciclos a partir do atual (o 13º só serve ao comprometido do mês).
+    projection: projection.months.slice(0, 12),
     // Fatura atual de cada cartão (lançado + previsto); a projeção começa no ciclo atual.
     cards: cards.map((c) => {
       const period = invoiceFor(today, c);

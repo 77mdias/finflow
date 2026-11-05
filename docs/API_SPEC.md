@@ -347,6 +347,7 @@ interface DashboardDTO {
   committedThisMonthCents: number;                   // RF-050
   previousMonthCents: number;                        // comprometido do mês anterior (variação)
   recurringMonthlyCents: number;                     // RF-051
+  projection: ProjectionDTO["months"];               // RF-055: 12 ciclos a partir do atual
   cards: (Pick<CardDTO, "id" | "nickname" | "issuer" | "brand" | "last4" | "color" | "closingDay" | "dueDay" | "limitCents">
     & { usedLimitCents: number | null;
         currentInvoice: { referenceMonth: string; dueDate: string; status: InvoiceStatus;
