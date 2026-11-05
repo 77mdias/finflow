@@ -14,6 +14,10 @@ import { seedDefaultCategories } from "@/modules/categories";
 export const CURRENT_TERMS_VERSION = "2026-11";
 export const DELETION_GRACE_DAYS = 30;
 
+/** RF-007: fim da carência. Até aqui dá para reativar; depois, o job de purge apaga a conta. */
+export const deletionDeadline = (deletedAt: Date): Date =>
+  new Date(deletedAt.getTime() + DELETION_GRACE_DAYS * 86_400_000);
+
 export const UpdateProfileSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   timezone: TimeZoneInput.optional(),
@@ -100,7 +104,14 @@ export async function requestAccountDeletion(
 }
 
 export async function reactivateAccount(ctx: UseCaseContext) {
-  return toProfileDTO(await ctx.tx.user.update({ where: { id: ctx.user.id }, data: { deletedAt: null } }));
+  const u = await ctx.tx.user.findUniqueOrThrow({ where: { id: ctx.user.id } });
+  if (u.deletedAt && ctx.clock.now() >= deletionDeadline(u.deletedAt)) {
+    throw new AppError(
+      "INVALID_STATE_TRANSITION",
+      `O prazo de ${DELETION_GRACE_DAYS} dias para reativar a conta terminou e ela será apagada.`,
+    );
+  }
+  return toProfileDTO(await ctx.tx.user.update({ where: { id: u.id }, data: { deletedAt: null } }));
 }
 
 /** RF-006: exportação LGPD (API_SPEC §8.3). BigInt → number; sem tokens nem sessões. */
@@ -163,6 +174,7 @@ export async function exportUserData(db: Db, userId: string) {
 /** Purge LGPD (contas com exclusão há > 30 dias) e retenção (DATABASE §12). */
 export async function purgeAndRetention(db: Db, now: Date) {
   const dayMs = 86_400_000;
+  // deletedAt < agora − carência ⇔ deletionDeadline(deletedAt) < agora (o mesmo prazo da reativação).
   const cutoff = new Date(now.getTime() - DELETION_GRACE_DAYS * dayMs);
   const purged = await db.user.deleteMany({ where: { deletedAt: { lt: cutoff } } });
   const notifications = await db.notification.deleteMany({
