@@ -15,6 +15,7 @@ const prefs: ReminderPreferences = {
 };
 const invoice = {
   id: "inv-1",
+  cardId: "card-1",
   cardNickname: "Roxinho",
   referenceMonth: "2026-12",
   status: "CLOSED" as const,
@@ -29,6 +30,7 @@ const subscription = {
   amountCents: 5_590n,
   trialEndsOn: null,
   canceledOn: null,
+  cardId: "card-1",
   cardNickname: "Roxinho",
 };
 
@@ -45,6 +47,8 @@ describe("dueReminders (RF-060 a RF-063)", () => {
       ["SUBSCRIPTION_CHARGE", "sub-1", "2026-12-03"],
     ]);
     expect(r[0]!.title).toBe("Fatura do Roxinho vence em 3 dias — R$ 842,17");
+    // Rota real da fatura (cartão + mês de referência), usada no app e nos e-mails.
+    expect(r.map((x) => x.href)).toEqual(["/cards/card-1/invoices/2026-12", "/subscriptions/sub-1"]);
   });
 
   it("respeita preferências e saldo", () => {

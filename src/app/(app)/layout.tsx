@@ -1,10 +1,10 @@
-import { CalendarDays, CreditCard, House, Repeat, ShoppingBag } from "lucide-react";
+import { Bell, CalendarDays, CreditCard, House, Repeat, Settings, ShoppingBag } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { currentUser } from "@/lib/session";
+import { currentUser, pendingDeletionUser } from "@/lib/session";
 import { todayOf } from "@/shared/application/context";
 import { systemClock } from "@/shared/infrastructure/clock";
 import { prisma } from "@/shared/infrastructure/db";
@@ -12,6 +12,7 @@ import { Logo } from "@/shared/ui/logo";
 
 import { listCardOptions } from "@/modules/cards";
 import { listCategories } from "@/modules/categories";
+import { unreadCount } from "@/modules/notifications";
 
 import { NavLink } from "./nav-link";
 import { QuickAdd } from "./quick-add";
@@ -33,11 +34,15 @@ const MOBILE_NAV = NAV.filter((n) => n.mobile);
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await currentUser();
-  if (!user) redirect("/entrar");
+  if (!user) redirect((await pendingDeletionUser()) ? "/reativar" : "/entrar");
   if (!user.onboardingCompletedAt) redirect("/onboarding");
   // Opções do Novo lançamento, disponível em todas as telas.
   const ctx = { db: prisma(), user, clock: systemClock };
-  const [cards, categories] = await Promise.all([listCardOptions(ctx), listCategories(ctx.db, user.id)]);
+  const [cards, categories, unread] = await Promise.all([
+    listCardOptions(ctx),
+    listCategories(ctx.db, user.id),
+    unreadCount(ctx),
+  ]);
   const quickAdd = {
     cards,
     categories: categories.map((c) => ({ id: c.id, name: c.name })),
@@ -61,11 +66,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto border-t border-border pt-4">
-          <p className="truncate px-3 text-body-sm text-fg-muted" title={user.email}>
+        <div className="mt-auto flex flex-col gap-1 border-t border-border pt-4">
+          <NavLink href="/notifications" icon={<Bell aria-hidden size={20} strokeWidth={1.5} />}>
+            Notificações
+            <UnreadBadge count={unread} />
+          </NavLink>
+          <NavLink href="/settings" icon={<Settings aria-hidden size={20} strokeWidth={1.5} />}>
+            Configurações
+          </NavLink>
+          <p className="mt-3 truncate px-3 text-body-sm text-fg-muted" title={user.email}>
             {user.email}
           </p>
-          <SignOutButton className="mt-2 w-full justify-start" />
+          <SignOutButton className="mt-1 w-full justify-start" />
         </div>
       </aside>
 
@@ -74,7 +86,30 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Link href="/dashboard" aria-label="FinFlow, início" className="rounded-md">
             <Logo />
           </Link>
-          <SignOutButton />
+          <div className="-mr-2 flex items-center">
+            <Link
+              href="/notifications"
+              aria-label={unread > 0 ? `Notificações, ${unread} não lidas` : "Notificações"}
+              className="relative grid size-11 place-items-center rounded-full text-fg-muted hover:bg-surface-subtle hover:text-fg"
+            >
+              <Bell aria-hidden size={22} strokeWidth={1.5} />
+              {unread > 0 && (
+                <span
+                  aria-hidden
+                  className="absolute top-1.5 right-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-primary px-1 text-caption leading-none font-semibold text-primary-fg tabular-nums"
+                >
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/settings"
+              aria-label="Configurações"
+              className="grid size-11 place-items-center rounded-full text-fg-muted hover:bg-surface-subtle hover:text-fg"
+            >
+              <Settings aria-hidden size={22} strokeWidth={1.5} />
+            </Link>
+          </div>
         </header>
         <main className="mx-auto w-full max-w-[1120px] px-4 pt-8 pb-40 sm:px-6 lg:px-10 lg:py-10">
           {children}
@@ -105,5 +140,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <QuickAdd variant="fab" {...quickAdd} />
       </div>
     </div>
+  );
+}
+
+/** Contador de não lidas ao lado de "Notificações" (some quando zera). */
+function UnreadBadge({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-caption font-semibold text-primary-fg tabular-nums">
+      <span className="sr-only">, </span>
+      {count > 99 ? "99+" : count}
+      <span className="sr-only"> não lidas</span>
+    </span>
   );
 }

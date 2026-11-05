@@ -32,6 +32,21 @@ export const MoneyInput = moneyString.transform((v, ctx) => {
   }
 });
 
+/** "0" ou positivo (ex.: valor mínimo de um filtro, onde zero = sem mínimo). */
+export const NonNegativeMoneyInput = moneyString.transform((v, ctx) => {
+  try {
+    const cents = parseMoney(v);
+    if (cents < 0n || cents > MAX_CENTS) {
+      ctx.addIssue({ code: "custom", message: "Valor fora do intervalo permitido" });
+      return z.NEVER;
+    }
+    return cents;
+  } catch {
+    ctx.addIssue({ code: "custom", message: "Valor inválido (ex.: 20,00)" });
+    return z.NEVER;
+  }
+});
+
 /** Valor com sinal, diferente de zero (ajustes). */
 export const SignedMoneyInput = moneyString.transform((v, ctx) => {
   try {

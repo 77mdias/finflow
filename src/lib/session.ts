@@ -51,6 +51,12 @@ export async function currentUser(): Promise<SessionUser | null> {
   return user && !user.deletedAt ? user : null;
 }
 
+/** Conta com sessão, mas em período de exclusão (RF-007): a área logada manda para /reativar. */
+export async function pendingDeletionUser(): Promise<SessionUser | null> {
+  const user = await provider();
+  return user?.deletedAt ? user : null;
+}
+
 /**
  * Barreira real de autenticação (o `proxy.ts` faz só checagem otimista).
  * Conta em período de exclusão só pode reativar (`allowDeleted`).

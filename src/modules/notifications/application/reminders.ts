@@ -59,6 +59,7 @@ export async function generateReminders(tx: Tx, users: ReadonlyArray<{ id: strin
       },
       invoices: invoices.map((i) => ({
         id: i.id,
+        cardId: i.cardId,
         cardNickname: i.card.nickname,
         referenceMonth: i.referenceMonth,
         status: i.status,

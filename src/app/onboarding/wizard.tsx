@@ -6,13 +6,14 @@ import { useEffect, useRef, useState } from "react";
 
 import { button } from "@/shared/ui/button";
 import { DialogActions } from "@/shared/ui/dialog";
-import { FIELD, FormError } from "@/shared/ui/field";
+import { FormError } from "@/shared/ui/field";
 import { brl } from "@/shared/ui/format";
 
 import { completeOnboarding } from "@/modules/accounts/ui/actions";
 import { CardForm } from "@/modules/cards/ui/components/card-form";
 import type { NotificationPreferencesDTO } from "@/modules/notifications";
 import { updateNotificationPreferences } from "@/modules/notifications/ui/actions";
+import { ReminderRow } from "@/modules/notifications/ui/components/reminder-row";
 import { ServiceAvatar } from "@/modules/subscriptions/ui/components/subscription-bits";
 import { SubscriptionForm } from "@/modules/subscriptions/ui/components/subscription-form";
 
@@ -179,11 +180,6 @@ export function Wizard({
   );
 }
 
-const DAYS = Array.from({ length: 11 }, (_, d) => ({
-  value: String(d),
-  label: d === 0 ? "No dia" : d === 1 ? "1 dia antes" : `${d} dias antes`,
-}));
-
 /** Passo 3: as preferências padrão já vêm marcadas (FLOW_MAP §2); "Pular" mantém o padrão. */
 function Reminders({ prefs }: { prefs: NotificationPreferencesDTO }) {
   const router = useRouter();
@@ -281,59 +277,5 @@ function Reminders({ prefs }: { prefs: NotificationPreferencesDTO }) {
         </button>
       </DialogActions>
     </form>
-  );
-}
-
-function ReminderRow({
-  id,
-  label,
-  hint,
-  checked,
-  onCheck,
-  days,
-  onDays,
-}: {
-  id: string;
-  label: string;
-  hint: string;
-  checked: boolean;
-  onCheck: (e: { target: { checked: boolean } }) => void;
-  days?: string;
-  onDays?: (e: { target: { value: string } }) => void;
-}) {
-  return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center">
-      <label htmlFor={id} className="flex flex-1 cursor-pointer items-start gap-3">
-        <input
-          id={id}
-          type="checkbox"
-          checked={checked}
-          onChange={onCheck}
-          aria-describedby={`${id}-ajuda`}
-          className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]"
-        />
-        <span>
-          <span className="block text-body">{label}</span>
-          <span id={`${id}-ajuda`} className="block text-body-sm text-fg-muted">
-            {hint}
-          </span>
-        </span>
-      </label>
-      {onDays && (
-        <select
-          aria-label={`Quando avisar: ${label.toLowerCase()}`}
-          value={days}
-          onChange={onDays}
-          disabled={!checked}
-          className={`${FIELD} sm:w-40 disabled:opacity-50`}
-        >
-          {DAYS.map((d) => (
-            <option key={d.value} value={d.value}>
-              {d.label}
-            </option>
-          ))}
-        </select>
-      )}
-    </li>
   );
 }
