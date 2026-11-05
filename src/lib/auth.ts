@@ -8,7 +8,7 @@ import { nextCookies } from "better-auth/next-js";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { oAuthProxy } from "better-auth/plugins/oauth-proxy";
 
-import { env } from "@/shared/config/env";
+import { env, type Env } from "@/shared/config/env";
 import { prisma, transaction } from "@/shared/infrastructure/db";
 import { logger, maskEmail } from "@/shared/infrastructure/logger";
 import { mailer } from "@/shared/infrastructure/mailer";
@@ -18,16 +18,21 @@ import { magicLinkEmail } from "@/modules/notifications";
 
 const DAY = 60 * 60 * 24;
 
-/** O login com Google só existe (e só aparece nas telas) quando o OAuth está configurado. */
-export function googleEnabled(): boolean {
-  const e = env();
-  return Boolean(e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET);
+export type OAuthProvider = "google" | "discord";
+
+/**
+ * O Discord pode devolver um e-mail que a pessoa não confirmou. Sem e-mail, o Better Auth recusa o
+ * login (`email_not_found`) antes de criar ou vincular conta. Isso impede que alguém crie a conta com
+ * o e-mail de outra pessoa e continue com acesso depois que a dona entrar pelo link.
+ */
+export function discordProfileToUser(profile: { verified: boolean }): { email?: undefined } {
+  return profile.verified ? {} : { email: undefined };
 }
 
-function createAuth() {
-  const e = env();
-  const google =
-    e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET
+/** Login social: cada provedor só existe (e só aparece nas telas) com as credenciais no ambiente. */
+function socialProviders(e: Env) {
+  return {
+    ...(e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET
       ? {
           google: {
             clientId: e.GOOGLE_CLIENT_ID,
@@ -35,7 +40,26 @@ function createAuth() {
             prompt: "select_account" as const,
           },
         }
-      : {};
+      : {}),
+    ...(e.DISCORD_CLIENT_ID && e.DISCORD_CLIENT_SECRET
+      ? {
+          discord: {
+            clientId: e.DISCORD_CLIENT_ID,
+            clientSecret: e.DISCORD_CLIENT_SECRET,
+            mapProfileToUser: discordProfileToUser,
+          },
+        }
+      : {}),
+  };
+}
+
+/** Provedores configurados, na ordem dos botões. */
+export function oauthProviders(): OAuthProvider[] {
+  return Object.keys(socialProviders(env())) as OAuthProvider[];
+}
+
+function createAuth() {
+  const e = env();
 
   return betterAuth({
     appName: "FinFlow",
@@ -46,7 +70,9 @@ function createAuth() {
       // Colunas de id são UUID no Postgres.
       database: { generateId: () => randomUUID() },
     },
-    socialProviders: google,
+    socialProviders: socialProviders(e),
+    // Só o Google vincula a uma conta existente sem checagem: ele sempre verifica o e-mail. O Discord
+    // fica de fora e só vincula quando informa o e-mail como verificado (padrão do Better Auth).
     account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
     session: {
       expiresIn: 30 * DAY, // RF-008

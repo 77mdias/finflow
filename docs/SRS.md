@@ -82,7 +82,7 @@ Prioridade: **M** = Must (MVP), **S** = Should (MVP se houver tempo), **C** = Co
 | ID | Requisito | Prior. |
 |---|---|---|
 | RF-001 | O sistema deve permitir login por **magic link** enviado ao e-mail, válido por 15 minutos e de uso único. | M |
-| RF-002 | O sistema deve permitir login com **Google OAuth**. | M |
+| RF-002 | O sistema deve permitir login com **Google OAuth** e **Discord OAuth**. | M |
 | RF-003 | O primeiro login deve criar a conta automaticamente e iniciar o onboarding. | M |
 | RF-004 | O usuário deve poder editar nome, fuso horário (padrão `America/Sao_Paulo`), moeda padrão (BRL) e preferências de notificação. | M |
 | RF-005 | O usuário deve poder encerrar a sessão atual e todas as sessões. | M |

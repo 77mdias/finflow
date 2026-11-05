@@ -21,6 +21,7 @@ flowchart LR
     end
 
     APP <-->|OIDC| GOOGLE[Google OAuth]
+    APP <-->|OAuth 2.0| DISCORD[Discord OAuth]
     APP -->|SQL · driver adapter| NEON[(Neon Postgres<br/>sa-east-1)]
     CRON -->|SQL| NEON
     APP -->|REST| UPSTASH[(Upstash Redis<br/>sa-east-1)]
@@ -36,7 +37,7 @@ flowchart LR
 
 | # | Integração | Finalidade | Direção | Criticidade | Sem ela… |
 |---|---|---|---|---|---|
-| 1 | Google OAuth | Login social | ↔ | Média | Login só por magic link |
+| 1 | Google OAuth · Discord OAuth | Login social ([§2](#2-google-oauth-via-better-auth), [§2.3](#23-discord-oauth)) | ↔ | Média | Login só por magic link |
 | 2 | Resend | Magic links, lembretes, digest | → (+ webhook ←) | **Alta** | Ninguém novo consegue entrar por e-mail; lembretes param |
 | 3 | Neon | Banco de dados | → | **Crítica** | App indisponível |
 | 4 | Vercel (hosting + Cron) | Execução, CDN, agendamento | — | **Crítica** | App indisponível / jobs parados |
@@ -74,6 +75,7 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   socialProviders: {
     google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, prompt: "select_account" },
+    discord: { clientId: env.DISCORD_CLIENT_ID, clientSecret: env.DISCORD_CLIENT_SECRET, mapProfileToUser: discordProfileToUser },
   },
   account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
   session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24, cookieCache: { enabled: true, maxAge: 300 } },
@@ -90,9 +92,36 @@ export const auth = betterAuth({
 ### 2.2 Falhas
 | Falha | Comportamento |
 |---|---|
-| Usuário nega consentimento | Volta a `/login?error=access_denied` com mensagem e opção de magic link |
+| Usuário nega consentimento | Volta a `/entrar?error=access_denied` com mensagem e opção de magic link |
 | Google indisponível | Erro amigável; magic link continua disponível |
 | E-mail do Google não verificado | Login recusado (só aceitar `email_verified = true`) |
+
+### 2.3 Discord OAuth
+
+| Item | Valor |
+|---|---|
+| Protocolo | OAuth 2.0 Authorization Code |
+| Escopos | `identify`, `email` (padrão do Better Auth; nenhum escopo de bot) |
+| Dados recebidos | id, e-mail, `verified`, nome (`global_name` ou `username`), avatar |
+| Armazenamento | `accounts` (`provider_id = "discord"`, `account_id = id do Discord`); tokens **não** são usados após o login |
+| Vinculação de contas | **Não** é provedor confiável: só vincula a uma conta existente quando o Discord informa o e-mail como verificado |
+| E-mail não verificado | `discordProfileToUser` descarta o e-mail ⇒ login recusado com `email_not_found`, sem criar conta (evita pré-sequestro de conta) |
+| Variáveis | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` |
+
+**Configuração**
+1. [Discord Developer Portal](https://discord.com/developers/applications) → *New Application* "FinFlow". Em *General Information*, preencher os links de termos e política de privacidade.
+2. *OAuth2* → copiar o **Client ID**; *Reset Secret* gera o **Client Secret** (aparece uma vez).
+3. *OAuth2* → *Redirects*:
+   - `https://finflow.app/api/auth/callback/discord`
+   - `https://staging.finflow.app/api/auth/callback/discord`
+   - `http://localhost:3000/api/auth/callback/discord`
+4. Previews da Vercel usam o mesmo `oAuthProxy` do Google (callback por `staging.finflow.app`).
+
+| Falha | Comportamento |
+|---|---|
+| Usuário cancela no Discord | `/entrar?error=access_denied` |
+| E-mail ausente ou não verificado no Discord | `/entrar?error=email_not_found`: pede para confirmar o e-mail no Discord ou entrar pelo link |
+| E-mail já tem conta e o Discord não o verificou | `/entrar?error=account_not_linked`: entrar pelo link no e-mail |
 
 ---
 
@@ -357,6 +386,7 @@ flowchart LR
 | `DATABASE_URL`, `DIRECT_URL` | Vercel, GitHub | Semestral ou após incidente | **Crítica** — dados de todos os usuários |
 | `BETTER_AUTH_SECRET` | Vercel | Anual (invalida sessões) | Alta — forjar sessões |
 | `GOOGLE_CLIENT_SECRET` | Vercel | Anual | Média |
+| `DISCORD_CLIENT_SECRET` | Vercel | Anual | Média |
 | `RESEND_API_KEY` | Vercel | Anual | Média — envio de e-mail em nome do domínio |
 | `RESEND_WEBHOOK_SECRET` | Vercel | Anual | Baixa — eventos falsos de bounce |
 | `CRON_SECRET` | Vercel | Anual | Baixa — jobs são idempotentes |
@@ -380,6 +410,7 @@ Lista para a Política de Privacidade (art. 33 — transferência internacional)
 | Neon | Todos os dados da aplicação | AWS São Paulo (sa-east-1) |
 | Resend | E-mail, nome, conteúdo dos lembretes (valores, nomes de cartões/assinaturas) | EUA |
 | Google | Identidade no login social | Global |
+| Discord | Identidade no login social | EUA |
 | Upstash | Hash de IP e IDs de usuário (contadores temporários) | AWS São Paulo |
 | Sentry | Stack traces, ID do usuário, metadados de requisição (sem PII) | EUA ou UE (escolher região UE se disponível no plano) |
 | Cloudflare | Backups cifrados | Conforme jurisdição do bucket |
