@@ -15,12 +15,17 @@ export interface ReminderPreferences {
 
 export interface ReminderInvoice {
   id: string;
+  cardId: string;
   cardNickname: string;
   referenceMonth: string;
   status: "OPEN" | "CLOSED" | "PARTIALLY_PAID" | "PAID" | "OVERDUE";
   dueDate: DateOnly;
   balanceCents: bigint;
 }
+
+/** Página da fatura (`/cards/[id]/invoices/[YYYY-MM]`), usada no app e nos e-mails. */
+const invoiceHref = (inv: Pick<ReminderInvoice, "cardId" | "referenceMonth">) =>
+  `/cards/${inv.cardId}/invoices/${inv.referenceMonth}`;
 
 export interface ReminderSubscription {
   id: string;
@@ -66,7 +71,7 @@ export function dueReminders(input: {
         targetDate: inv.dueDate,
         title: `Fatura do ${inv.cardNickname} vence ${days(prefs.invoiceDueDaysBefore)} — ${formatMoney(inv.balanceCents)}`,
         body: `A fatura de ${inv.referenceMonth} do cartão ${inv.cardNickname} vence em ${inv.dueDate}.`,
-        href: `/invoices/${inv.id}`,
+        href: invoiceHref(inv),
       });
     }
   }
@@ -81,7 +86,7 @@ export function dueReminders(input: {
         targetDate: inv.dueDate,
         title: `Fatura do ${inv.cardNickname} venceu ontem`,
         body: `Saldo em aberto: ${formatMoney(inv.balanceCents)}.`,
-        href: `/invoices/${inv.id}`,
+        href: invoiceHref(inv),
       });
     }
   }
