@@ -164,6 +164,15 @@
   --color-neutral-btn: var(--neutral-btn);
   --color-neutral-btn-fg: var(--neutral-btn-fg);
   --color-ring: var(--ring);
+  /* Avisos e badges de status (DESIGN §2.2): fundo + texto que funcionam nos dois temas. */
+  --color-status-positive: var(--status-positive);
+  --color-status-positive-fg: var(--status-positive-fg);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-fg: var(--status-warning-fg);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-fg: var(--status-danger-fg);
+  --color-status-info: var(--status-info);
+  --color-status-info-fg: var(--status-info-fg);
 }
 
 :root {
@@ -185,6 +194,14 @@
   --neutral-btn: var(--color-ink-800);
   --neutral-btn-fg: #ffffff;
   --ring: var(--color-iris-600);
+  --status-positive: var(--color-positive-50);
+  --status-positive-fg: var(--color-positive-700);
+  --status-warning: var(--color-warning-50);
+  --status-warning-fg: var(--color-warning-700);
+  --status-danger: var(--color-danger-50);
+  --status-danger-fg: var(--color-danger-700);
+  --status-info: var(--color-iris-50);
+  --status-info-fg: var(--color-iris-700);
   color-scheme: light;
 }
 
@@ -209,6 +226,14 @@
   --neutral-btn: #ffffff;
   --neutral-btn-fg: var(--color-ink-950);
   --ring: var(--color-iris-300);
+  --status-positive: rgb(18 183 106 / 0.14);
+  --status-positive-fg: #34d399;
+  --status-warning: rgb(245 165 36 / 0.14);
+  --status-warning-fg: #fbbf24;
+  --status-danger: rgb(240 68 56 / 0.14);
+  --status-danger-fg: #f97066;
+  --status-info: rgb(155 140 255 / 0.14);
+  --status-info-fg: var(--color-iris-300);
   color-scheme: dark;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -242,6 +267,14 @@
     --neutral-btn: #ffffff;
     --neutral-btn-fg: var(--color-ink-950);
     --ring: var(--color-iris-300);
+    --status-positive: rgb(18 183 106 / 0.14);
+    --status-positive-fg: #34d399;
+    --status-warning: rgb(245 165 36 / 0.14);
+    --status-warning-fg: #fbbf24;
+    --status-danger: rgb(240 68 56 / 0.14);
+    --status-danger-fg: #f97066;
+    --status-info: rgb(155 140 255 / 0.14);
+    --status-info-fg: var(--color-iris-300);
     color-scheme: dark;
   }
 }
