@@ -11,6 +11,7 @@ import {
   listCards,
   setDefaultCard,
   updateCard,
+  UpdateCardSchema,
 } from "@/modules/cards";
 import { deleteCategory, listCategories } from "@/modules/categories";
 import { createExpense, deleteExpense, updateExpense } from "@/modules/expenses";
@@ -116,6 +117,14 @@ describe("cartões", () => {
         updateCard(ctx, { id: card.id, nickname: "Velho", expectedUpdatedAt: card.updatedAt }),
       ),
     ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+
+  it("editar com a instituição vazia remove a instituição", async () => {
+    const u = await makeUser();
+    const card = await run(u, at("2026-11-04"), (ctx) => createCard(ctx, { ...newCard(), issuer: "Nubank" }));
+    const input = UpdateCardSchema.parse({ id: card.id, issuer: "" });
+    const res = await run(u, at("2026-11-04"), (ctx) => updateCard(ctx, input));
+    expect(res.card.issuer).toBeNull();
   });
 
   it("arquivar exige destino para assinaturas; excluir só sem histórico (RF-013, RF-014)", async () => {

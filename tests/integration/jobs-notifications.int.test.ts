@@ -6,7 +6,7 @@ import { transaction } from "@/shared/infrastructure/db";
 
 import { exportUserData, onUserCreated, purgeAndRetention, requestAccountDeletion } from "@/modules/accounts";
 import { createCard } from "@/modules/cards";
-import { getDashboard, getInvoiceView, getProjection } from "@/modules/dashboard";
+import { getCardsOverview, getDashboard, getInvoiceView, getProjection } from "@/modules/dashboard";
 import { createExpense } from "@/modules/expenses";
 import { registerPayment } from "@/modules/invoices";
 import { runDailyJob, runPurgeJob, runRemindersJob, runJob } from "@/modules/jobs";
@@ -207,6 +207,8 @@ describe("dashboard e projeção", () => {
         },
       },
     ]);
+    // /cards mostra a mesma fatura atual que o painel (a projeção de 1 ciclo basta).
+    expect(await getCardsOverview(queryCtx(u, at("2026-11-30")))).toEqual(dash.cards);
     // Variação: o mês anterior de janeiro é o comprometido de dezembro.
     const january = await getDashboard(queryCtx(u, at("2026-11-30")), "2027-01");
     expect(january.committedThisMonthCents).toBe(5_590);

@@ -34,3 +34,7 @@ export function dayLabel(d: DateOnly, today: DateOnly): string {
   if (d === addDays(today, 1)) return "Amanhã";
   return capitalize(DAY.format(noon(d)));
 }
+
+const DECIMAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** 123456 → "1.234,56": valor inicial de campos de dinheiro (sem "R$", que é prefixo fixo). */
+export const decimal = (cents: number): string => DECIMAL.format(cents / 100);

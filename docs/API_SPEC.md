@@ -136,7 +136,7 @@ export const ClientRequestId = z.uuid().optional();
 | Action | Entrada | Saída | Erros específicos | Requisitos |
 |---|---|---|---|---|
 | `createCard` | `CardInput` + `clientRequestId?` | `CardDTO` | `PLAN_LIMIT_REACHED` | RF-010, RF-011 |
-| `updateCard` | `{ id, expectedUpdatedAt, ...Partial<CardInput> }` | `CardDTO` + `{ invoicesRecalculated: number }` | `NOT_FOUND`, `CONFLICT` | RF-012, RN-07 |
+| `updateCard` | `{ id, expectedUpdatedAt, ...Partial<CardInput> }` (`issuer: ""` remove a instituição; `limit`/`last4: null` removem) | `CardDTO` + `{ invoicesRecalculated: number }` | `NOT_FOUND`, `CONFLICT` | RF-012, RN-07 |
 | `setDefaultCard` | `{ id }` | `CardDTO` | `NOT_FOUND`, `CARD_ARCHIVED` | RF-016 |
 | `archiveCard` | `{ id, reassignTo?: Id, cancelSubscriptions?: boolean }` | `{ archived: true, moved: number, canceled: number }` | `NOT_FOUND`, `CARD_HAS_ACTIVE_SUBSCRIPTIONS` | RF-013 |
 | `unarchiveCard` | `{ id }` | `CardDTO` | `NOT_FOUND`, `PLAN_LIMIT_REACHED` | — |
@@ -276,11 +276,12 @@ Funções de servidor chamadas por Server Components; todas recebem `userId` com
 |---|---|---|
 | `cards.listCards(userId, { includeArchived? })` | `CardWithCurrentInvoiceDTO[]` | `/cards`, dashboard |
 | `cards.getCard(userId, cardId)` | `CardDetailDTO` (cartão + fatura atual + últimas 12 faturas) | `/cards/[id]` |
-| `invoices.getInvoice(userId, cardId, referenceMonth)` | `InvoiceDetailDTO` (inclui previstas) | `/cards/[id]/invoices/[ref]` |
+| `dashboard.getInvoiceView(userId, cardId, referenceMonth)` | `InvoiceDetailDTO` (inclui previstas) | `/cards/[id]/invoices/[ref]` |
 | `subscriptions.listSubscriptions(userId, { status?, cardId?, categoryId?, sort?, cursor?, limit? })` | `Page<SubscriptionDTO>` | `/subscriptions` |
 | `subscriptions.getSubscription(userId, id)` | `SubscriptionDetailDTO` (+ histórico de preço, últimas cobranças) | `/subscriptions/[id]` |
 | `expenses.listExpenses(userId, { cardId?, cursor?, limit? })` | `Page<ExpenseDTO>` | `/expenses` |
 | `dashboard.getDashboard(userId, month)` | `DashboardDTO` | `/dashboard` |
+| `dashboard.getCardsOverview(userId)` | `DashboardDTO["cards"]`, inclusive arquivados (por último) | `/cards` |
 | `dashboard.getProjection(userId, months = 12)` | `ProjectionDTO` | `/dashboard` |
 | `dashboard.getCalendar(userId, from, to)` | `CalendarEventDTO[]` | `/calendar` |
 | `notifications.list(userId, { cursor?, limit? })` | `Page<NotificationDTO>` | `/notifications` |
@@ -348,7 +349,7 @@ interface DashboardDTO {
   previousMonthCents: number;                        // comprometido do mês anterior (variação)
   recurringMonthlyCents: number;                     // RF-051
   projection: ProjectionDTO["months"];               // RF-055: 12 ciclos a partir do atual
-  cards: (Pick<CardDTO, "id" | "nickname" | "issuer" | "brand" | "last4" | "color" | "closingDay" | "dueDay" | "limitCents">
+  cards: (Pick<CardDTO, "id" | "nickname" | "issuer" | "brand" | "last4" | "color" | "closingDay" | "dueDay" | "limitCents" | "archivedAt">
     & { usedLimitCents: number | null;
         currentInvoice: { referenceMonth: string; dueDate: string; status: InvoiceStatus;
                           totalCents: number; projectedCents: number } })[];  // fatura atual (lançado + previsto)

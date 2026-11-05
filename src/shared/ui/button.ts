@@ -10,6 +10,7 @@ const VARIANTS = {
     "bg-neutral-btn text-neutral-btn-fg shadow-sm hover:bg-[color-mix(in_oklab,var(--neutral-btn),var(--neutral-btn-fg)_14%)]",
   tonal: "bg-tonal text-tonal-fg hover:bg-[color-mix(in_oklab,var(--tonal),var(--tonal-fg)_12%)]",
   ghost: "text-fg hover:bg-surface-subtle",
+  danger: "bg-danger-600 text-white hover:bg-danger-700",
 } as const;
 
 const SIZES = {

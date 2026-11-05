@@ -219,6 +219,49 @@ export async function getUpcoming(ctx: QueryContext, days = 14): Promise<Calenda
 }
 
 /** RF-050 a RF-056: painel principal do mês. */
+/** Fatura atual de cada cartão (lançado + previsto); a projeção começa no ciclo atual de cada cartão. */
+function withCurrentForecast(
+  cards: Awaited<ReturnType<typeof listCards>>,
+  projection: Awaited<ReturnType<typeof getProjection>>,
+  today: DateOnly,
+) {
+  return cards.map((c) => {
+    const period = invoiceFor(today, c);
+    const forecast = projection.months
+      .find((m) => m.referenceMonth === period.referenceMonth)
+      ?.byCard.find((b) => b.cardId === c.id);
+    return {
+      id: c.id,
+      nickname: c.nickname,
+      issuer: c.issuer,
+      brand: c.brand,
+      last4: c.last4,
+      color: c.color,
+      closingDay: c.closingDay,
+      dueDay: c.dueDay,
+      limitCents: c.limitCents,
+      usedLimitCents: c.usedLimitCents,
+      archivedAt: c.archivedAt,
+      currentInvoice: {
+        referenceMonth: period.referenceMonth,
+        dueDate: c.currentInvoice?.dueDate ?? period.dueDate,
+        status: c.currentInvoice?.status ?? ("OPEN" as const),
+        totalCents: forecast?.totalCents ?? c.currentInvoice?.totalCents ?? 0,
+        projectedCents: forecast?.projectedCents ?? 0,
+      },
+    };
+  });
+}
+
+/** `/cards`: todos os cartões (arquivados por último) com a fatura atual, igual à do painel. */
+export async function getCardsOverview(ctx: QueryContext) {
+  const [cards, projection] = await Promise.all([
+    listCards(ctx, { includeArchived: true }),
+    getProjection(ctx, 1),
+  ]);
+  return withCurrentForecast(cards, projection, todayOf(ctx));
+}
+
 export async function getDashboard(ctx: QueryContext, month?: string) {
   const today = todayOf(ctx);
   const ref: YearMonth = month ? parseYearMonth(month) : yearMonthOf(today);
@@ -259,32 +302,7 @@ export async function getDashboard(ctx: QueryContext, month?: string) {
     recurringMonthlyCents: n(recurring),
     // RF-055: próximos 12 ciclos a partir do atual (o 13º só serve ao comprometido do mês).
     projection: projection.months.slice(0, 12),
-    // Fatura atual de cada cartão (lançado + previsto); a projeção começa no ciclo atual.
-    cards: cards.map((c) => {
-      const period = invoiceFor(today, c);
-      const forecast = projection.months
-        .find((m) => m.referenceMonth === period.referenceMonth)
-        ?.byCard.find((b) => b.cardId === c.id);
-      return {
-        id: c.id,
-        nickname: c.nickname,
-        issuer: c.issuer,
-        brand: c.brand,
-        last4: c.last4,
-        color: c.color,
-        closingDay: c.closingDay,
-        dueDay: c.dueDay,
-        limitCents: c.limitCents,
-        usedLimitCents: c.usedLimitCents,
-        currentInvoice: {
-          referenceMonth: period.referenceMonth,
-          dueDate: c.currentInvoice?.dueDate ?? period.dueDate,
-          status: c.currentInvoice?.status ?? ("OPEN" as const),
-          totalCents: forecast?.totalCents ?? c.currentInvoice?.totalCents ?? 0,
-          projectedCents: forecast?.projectedCents ?? 0,
-        },
-      };
-    }),
+    cards: withCurrentForecast(cards, projection, today),
     overdueInvoices: overdue.map(toInvoiceSummaryDTO),
     upcoming,
     limitUsage: cards
