@@ -203,8 +203,8 @@ erDiagram
     }
     verifications {
         uuid id PK
-        varchar254 identifier "e-mail"
-        varchar255 value "token do magic link"
+        varchar254 identifier "token do magic link ou state do OAuth"
+        text value "JSON do Better Auth"
         timestamptz expires_at
     }
     consents {
