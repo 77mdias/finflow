@@ -141,7 +141,7 @@ function InvoicePreview() {
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-body-sm text-fg-muted">Fatura de dezembro</p>
-        <span className="inline-flex h-6 items-center gap-1 rounded-full bg-warning-50 px-2.5 text-caption text-warning-700">
+        <span className="inline-flex h-6 items-center gap-1 rounded-full bg-status-warning px-2.5 text-caption text-status-warning-fg">
           <FileText size={14} strokeWidth={1.5} />
           Fechada
         </span>
@@ -563,6 +563,12 @@ function SiteFooter() {
           >
             Licença
           </a>
+          <Link href="/termos" className="text-fg-muted transition-colors duration-150 hover:text-fg">
+            Termos
+          </Link>
+          <Link href="/privacidade" className="text-fg-muted transition-colors duration-150 hover:text-fg">
+            Privacidade
+          </Link>
           <Link href="/entrar" className="text-fg-muted transition-colors duration-150 hover:text-fg">
             Entrar
           </Link>

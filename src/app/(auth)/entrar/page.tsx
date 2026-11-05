@@ -46,7 +46,7 @@ export default async function SignInPage({
         {notice && (
           <p
             role="alert"
-            className="mt-5 flex gap-2 rounded-md bg-danger-50 p-4 text-body-sm text-danger-700"
+            className="mt-5 flex gap-2 rounded-md bg-status-danger p-4 text-body-sm text-status-danger-fg"
           >
             <CircleAlert aria-hidden size={16} strokeWidth={1.5} className="mt-0.5 shrink-0" />
             {notice}

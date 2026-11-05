@@ -67,23 +67,29 @@
 
 ### 2.2 Tokens semânticos (o que os componentes usam)
 
-| Token                                     | Claro                  | Escuro                                |
-| ----------------------------------------- | ---------------------- | ------------------------------------- |
-| `--bg` (página)                           | `#FFFFFF`              | `ink-950`                             |
-| `--surface` (cards)                       | `#FFFFFF`              | `ink-900`                             |
-| `--surface-subtle`                        | `ink-50`               | `ink-850`                             |
-| `--surface-muted`                         | `ink-100`              | `#2A2631`                             |
-| `--surface-inverse` (seção de contraste)  | `ink-950`              | `#FFFFFF`                             |
-| `--fg`                                    | `ink-800`              | `#F4F2F7`                             |
-| `--fg-muted`                              | `ink-600`              | `ink-400`                             |
-| `--fg-subtle` (placeholder, desabilitado) | `rgba(33,29,38,0.45)`  | `rgba(244,242,247,0.40)`              |
-| `--border` (hairline)                     | `rgba(33,29,38,0.06)`  | `rgba(255,255,255,0.08)`              |
-| `--border-strong`                         | `rgba(33,29,38,0.12)`  | `rgba(255,255,255,0.14)`              |
-| `--primary` / `--primary-fg`              | `iris-600` / `#FFFFFF` | `iris-400` / `ink-950`                |
-| `--primary-hover`                         | `iris-700`             | `iris-300`                            |
-| `--tonal` / `--tonal-fg`                  | `iris-50` / `iris-700` | `rgba(155,140,255,0.14)` / `iris-300` |
-| `--neutral-btn` / `--neutral-btn-fg`      | `ink-800` / `#FFFFFF`  | `#FFFFFF` / `ink-950`                 |
-| `--ring` (foco)                           | `iris-600`             | `iris-300`                            |
+| Token                                     | Claro                          | Escuro                                |
+| ----------------------------------------- | ------------------------------ | ------------------------------------- |
+| `--bg` (página)                           | `#FFFFFF`                      | `ink-950`                             |
+| `--surface` (cards)                       | `#FFFFFF`                      | `ink-900`                             |
+| `--surface-subtle`                        | `ink-50`                       | `ink-850`                             |
+| `--surface-muted`                         | `ink-100`                      | `#2A2631`                             |
+| `--surface-inverse` (seção de contraste)  | `ink-950`                      | `#FFFFFF`                             |
+| `--fg`                                    | `ink-800`                      | `#F4F2F7`                             |
+| `--fg-muted`                              | `ink-600`                      | `ink-400`                             |
+| `--fg-subtle` (placeholder, desabilitado) | `rgba(33,29,38,0.45)`          | `rgba(244,242,247,0.40)`              |
+| `--border` (hairline)                     | `rgba(33,29,38,0.06)`          | `rgba(255,255,255,0.08)`              |
+| `--border-strong`                         | `rgba(33,29,38,0.12)`          | `rgba(255,255,255,0.14)`              |
+| `--primary` / `--primary-fg`              | `iris-600` / `#FFFFFF`         | `iris-400` / `ink-950`                |
+| `--primary-hover`                         | `iris-700`                     | `iris-300`                            |
+| `--tonal` / `--tonal-fg`                  | `iris-50` / `iris-700`         | `rgba(155,140,255,0.14)` / `iris-300` |
+| `--neutral-btn` / `--neutral-btn-fg`      | `ink-800` / `#FFFFFF`          | `#FFFFFF` / `ink-950`                 |
+| `--ring` (foco)                           | `iris-600`                     | `iris-300`                            |
+| `--status-positive` / `-fg`               | `positive-50` / `positive-700` | `rgba(18,183,106,0.14)` / `#34D399`   |
+| `--status-warning` / `-fg`                | `warning-50` / `warning-700`   | `rgba(245,165,36,0.14)` / `#FBBF24`   |
+| `--status-danger` / `-fg`                 | `danger-50` / `danger-700`     | `rgba(240,68,56,0.14)` / `#F97066`    |
+| `--status-info` / `-fg`                   | `iris-50` / `iris-700`         | `rgba(155,140,255,0.14)` / `iris-300` |
+
+**Status (avisos, badges, mensagens de erro):** sempre pelos tokens `--status-*` (utilitários `bg-status-danger text-status-danger-fg`…), nunca pela paleta crua (`danger-50`, `danger-700`), que só vale no tema claro. No escuro, o fundo é o `-500` do papel a 14% de opacidade (o mesmo padrão do `--tonal`) e o texto é a coluna "Modo escuro" da §2.1. Texto de erro solto, sem caixa, usa só `--status-danger-fg`.
 
 ### 2.3 Cores dos cartões virtuais
 
@@ -482,7 +488,7 @@ Forma `radius-full`. Ícone 16/18/20 px com gap 8. Estados: hover (`--primary-ho
 ### 6.2 Campos de formulário
 
 - Altura 44, `radius-md`, fundo `--surface-subtle`, sem borda em repouso; hover `--surface-muted`; foco: fundo `--surface` + anel `--ring` 2 px.
-- Label `label` acima (gap 6), ajuda/erro `body-sm` abaixo; erro em `danger-700` com ícone.
+- Label `label` acima (gap 6), ajuda/erro `body-sm` abaixo; erro em `--status-danger-fg` com ícone.
 - `MoneyInput`: prefixo "R$" fixo em `--fg-muted`, máscara pt-BR, teclado numérico, alinhamento à direita em tabelas.
 - `DateOnlyPicker`: formato `dd/mm/aaaa` exibido, valor `YYYY-MM-DD`.
 - Campo único de destaque (busca, e-mail da landing): `radius-full`, altura 48.
@@ -505,13 +511,13 @@ Trilho `--surface-subtle` `radius-full` padding 4; item ativo `--surface` + `sha
 
 | Status                     | Fundo / texto                                   | Ícone      |
 | -------------------------- | ----------------------------------------------- | ---------- |
-| Aberta (`OPEN`)            | `iris-50` / `iris-700`                          | relógio    |
-| Fechada (`CLOSED`)         | `warning-50` / `warning-700`                    | documento  |
-| Parcial (`PARTIALLY_PAID`) | `warning-50` / `warning-700`                    | meia-lua   |
-| Paga (`PAID`)              | `positive-50` / `positive-700`                  | check      |
-| Vencida (`OVERDUE`)        | `danger-50` / `danger-700`                      | alerta     |
+| Aberta (`OPEN`)            | `--status-info` / `-fg`                         | relógio    |
+| Fechada (`CLOSED`)         | `--status-warning` / `-fg`                      | documento  |
+| Parcial (`PARTIALLY_PAID`) | `--status-warning` / `-fg`                      | meia-lua   |
+| Paga (`PAID`)              | `--status-positive` / `-fg`                     | check      |
+| Vencida (`OVERDUE`)        | `--status-danger` / `-fg`                       | alerta     |
 | Futura (`FUTURE`)          | transparente + `--border-strong` / `--fg-muted` | calendário |
-| Em teste (`TRIAL`)         | `iris-50` / `iris-700`                          | ampulheta  |
+| Em teste (`TRIAL`)         | `--status-info` / `-fg`                         | ampulheta  |
 | Pausada / Cancelada        | `--surface-muted` / `--fg-muted`                | pausa / x  |
 
 ### 6.7 Cartão virtual (`CardVisual`) e selo da instituição
@@ -594,17 +600,18 @@ Ilustração simples em traço (`iris-300`, 120 px) · título `heading-sm` · 1
 
 Contrastes calculados pela fórmula WCAG 2.1 (mín. 4,5:1 texto, 3:1 componentes):
 
-| Par                                                                     | Contraste    |
-| ----------------------------------------------------------------------- | ------------ |
-| `ink-800` sobre branco                                                  | 16,56        |
-| `ink-600` (secundário) sobre branco / sobre `ink-50`                    | 5,86 / 5,40  |
-| Branco sobre `iris-600` (botão primário) · `iris-600` como link         | 5,26         |
-| `iris-700` sobre `iris-50` (tonal, badge "Aberta")                      | 5,78         |
-| `positive-700` sobre branco / sobre `positive-50`                       | 5,41 / 4,89  |
-| `warning-700` sobre `warning-50`                                        | 4,67         |
-| `danger-700` sobre `danger-50` · branco sobre `danger-600`              | 5,92 · 4,83  |
-| Escuro: `#F4F2F7` sobre `ink-950` · `ink-400` sobre `ink-900`           | 17,41 · 7,55 |
-| Escuro: `iris-300` sobre `ink-900` · `ink-950` sobre `iris-400` (botão) | 8,66 · 6,99  |
+| Par                                                                                         | Contraste                 |
+| ------------------------------------------------------------------------------------------- | ------------------------- |
+| `ink-800` sobre branco                                                                      | 16,56                     |
+| `ink-600` (secundário) sobre branco / sobre `ink-50`                                        | 5,86 / 5,40               |
+| Branco sobre `iris-600` (botão primário) · `iris-600` como link                             | 5,26                      |
+| `iris-700` sobre `iris-50` (tonal, badge "Aberta")                                          | 5,78                      |
+| `positive-700` sobre branco / sobre `positive-50`                                           | 5,41 / 4,89               |
+| `warning-700` sobre `warning-50`                                                            | 4,67                      |
+| `danger-700` sobre `danger-50` · branco sobre `danger-600`                                  | 5,92 · 4,83               |
+| Escuro: `#F4F2F7` sobre `ink-950` · `ink-400` sobre `ink-900`                               | 17,41 · 7,55              |
+| Escuro: `iris-300` sobre `ink-900` · `ink-950` sobre `iris-400` (botão)                     | 8,66 · 6,99               |
+| Escuro, `--status-*-fg` sobre `--status-*` em `ink-900`: positive · warning · danger · info | 7,77 · 8,55 · 5,68 · 7,01 |
 
 Regras: foco sempre visível (`--ring`); status com ícone + texto; alvos ≥ 44×44; gráficos com tabela/lista equivalente (`aria-describedby`); `prefers-reduced-motion` respeitado; tamanho mínimo de texto 12 px (só em `caption`).
 

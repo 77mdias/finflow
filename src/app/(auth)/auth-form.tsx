@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleAlert, LoaderCircle, Mail } from "lucide-react";
+import Link from "next/link";
 import { useState, type ComponentType, type FormEvent } from "react";
 
 import type { OAuthProvider } from "@/lib/auth";
@@ -82,7 +83,7 @@ export function AuthForm({ mode, providers }: { mode: "entrar" | "cadastro"; pro
   if (state.status === "sent") {
     return (
       <div className="mt-6">
-        <p role="status" className="rounded-md bg-positive-50 p-4 text-body text-positive-700">
+        <p role="status" className="rounded-md bg-status-positive p-4 text-body text-status-positive-fg">
           Enviamos um link para <strong className="font-semibold">{state.email}</strong>.{" "}
           {signup ? "Abra-o para ativar sua conta." : "Abra-o para entrar."} Ele vale por 15 minutos; confira
           também a caixa de spam.
@@ -169,7 +170,7 @@ export function AuthForm({ mode, providers }: { mode: "entrar" | "cadastro"; pro
           />
         </div>
         {error && (
-          <p id="auth-erro" role="alert" className="flex gap-1.5 text-body-sm text-danger-700">
+          <p id="auth-erro" role="alert" className="flex gap-1.5 text-body-sm text-status-danger-fg">
             <CircleAlert aria-hidden size={16} strokeWidth={1.5} className="mt-0.5 shrink-0" />
             {error}
           </p>
@@ -184,9 +185,24 @@ export function AuthForm({ mode, providers }: { mode: "entrar" | "cadastro"; pro
         </button>
       </form>
 
-      {/* shortcut: Termos e Privacidade ainda sem página; viram links quando /termos e /privacidade existirem. */}
       <p className="mt-6 text-center text-body-sm text-fg-muted">
-        Ao continuar, você aceita os Termos de uso e a Política de privacidade do FinFlow.
+        Ao continuar, você aceita os{" "}
+        <Link
+          href="/termos"
+          target="_blank"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Termos de uso
+        </Link>{" "}
+        e a{" "}
+        <Link
+          href="/privacidade"
+          target="_blank"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Política de privacidade
+        </Link>{" "}
+        do FinFlow.
       </p>
     </div>
   );
