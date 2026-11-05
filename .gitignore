@@ -33,3 +33,10 @@ coverage/
 
 # Capturas de sites usadas como referência visual (conteúdo de terceiros, não versionar)
 aave.com/
+
+# Estado local de ferramentas de agentes (claude-flow, swarm, agentdb, ruvector) — muda a cada uso
+.claude-flow/
+.swarm/
+agentdb.rvf
+agentdb.rvf.*
+ruvector.db
