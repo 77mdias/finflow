@@ -41,7 +41,7 @@ export const CreateSubscriptionSchema = z
 export const UpdateSubscriptionSchema = z.object({
   id: Id,
   expectedUpdatedAt: ExpectedUpdatedAt,
-  name: z.string().trim().min(1).max(80).optional(),
+  name: z.string().trim().min(1, "Informe um nome").max(80).optional(),
   categoryId: Id.nullable().optional(),
   cycle: Cycle.optional(),
   nextChargeDate: DateOnlyInput.optional(),

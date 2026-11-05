@@ -1,4 +1,4 @@
-import { CreditCard, House } from "lucide-react";
+import { CreditCard, House, Repeat } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -10,10 +10,11 @@ import { Logo } from "@/shared/ui/logo";
 import { NavLink } from "./nav-link";
 import { SignOutButton } from "./sign-out-button";
 
-// shortcut: Assinaturas, Calendário e o FAB "+" entram na navegação junto com as telas deles.
+// shortcut: Calendário e o FAB "+" entram na navegação junto com as telas deles.
 const NAV: { href: Route; label: string; Icon: typeof House }[] = [
   { href: "/dashboard", label: "Início", Icon: House },
   { href: "/cards", label: "Cartões", Icon: CreditCard },
+  { href: "/subscriptions", label: "Assinaturas", Icon: Repeat },
 ];
 
 /**

@@ -112,7 +112,10 @@ export default async function DashboardPage({
           <span>
             Assinaturas somam{" "}
             <strong className="font-semibold text-fg tabular-nums">{brl(d.recurringMonthlyCents)}</strong> por
-            mês
+            mês ·{" "}
+            <Link href="/subscriptions" className="text-fg underline-offset-4 hover:underline">
+              Ver assinaturas
+            </Link>
           </span>
         </p>
       </section>
