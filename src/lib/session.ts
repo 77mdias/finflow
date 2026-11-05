@@ -11,6 +11,8 @@ import { auth } from "./auth";
 export interface SessionUser extends UserContext {
   email: string;
   deletedAt: Date | null;
+  /** Nulo: a área logada manda para /onboarding (RF-080). */
+  onboardingCompletedAt: Date | null;
 }
 
 export type SessionProvider = () => Promise<SessionUser | null>;
@@ -24,7 +26,14 @@ const betterAuthSession: SessionProvider = async () => {
   if (!session) return null;
   const user = await prisma().user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, email: true, timezone: true, plan: true, deletedAt: true },
+    select: {
+      id: true,
+      email: true,
+      timezone: true,
+      plan: true,
+      deletedAt: true,
+      onboardingCompletedAt: true,
+    },
   });
   return user;
 };

@@ -49,6 +49,8 @@ export function SubscriptionForm({
   today,
   onDone,
   onSaved,
+  onCancel = onDone,
+  cancelLabel = "Cancelar",
 }: {
   sub?: EditableSubscription;
   cards: Option[];
@@ -57,6 +59,9 @@ export function SubscriptionForm({
   onDone: () => void;
   /** Recebe o texto do aviso de confirmação (usado no Novo lançamento). */
   onSaved?: (message: string) => void;
+  /** Botão secundário; no onboarding ele avança, e salvar limpa o formulário para a próxima. */
+  onCancel?: () => void;
+  cancelLabel?: string;
 }) {
   const [v, setV] = useState({
     name: sub?.name ?? "",
@@ -300,8 +305,8 @@ export function SubscriptionForm({
       {message && <FormError>{message}</FormError>}
 
       <DialogActions>
-        <button type="button" onClick={onDone} className={button("ghost", "md")}>
-          Cancelar
+        <button type="button" onClick={onCancel} className={button("ghost", "md")}>
+          {cancelLabel}
         </button>
         <button type="submit" disabled={busy} className={button("primary", "md")}>
           {busy && <LoaderCircle aria-hidden size={18} strokeWidth={1.5} className="animate-spin" />}

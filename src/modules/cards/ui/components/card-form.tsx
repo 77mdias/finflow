@@ -61,10 +61,13 @@ export function CardForm({
   card,
   onDone,
   onSaved,
+  cancelLabel = "Cancelar",
 }: {
   card?: EditableCard;
   onDone: () => void;
   onSaved?: (message: string) => void;
+  /** Texto do botão secundário (o onboarding usa "Pular"). */
+  cancelLabel?: string;
 }) {
   const [v, setV] = useState({
     nickname: card?.nickname ?? "",
@@ -271,7 +274,7 @@ export function CardForm({
 
       <DialogActions>
         <button type="button" onClick={onDone} className={button("ghost", "md")}>
-          Cancelar
+          {cancelLabel}
         </button>
         <button type="submit" disabled={busy} className={button("primary", "md")}>
           {busy && <LoaderCircle aria-hidden size={18} strokeWidth={1.5} className="animate-spin" />}
