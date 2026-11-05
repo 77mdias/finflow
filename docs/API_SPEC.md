@@ -275,6 +275,7 @@ Funções de servidor chamadas por Server Components; todas recebem `userId` com
 | Função | Retorno | Usado em |
 |---|---|---|
 | `cards.listCards(userId, { includeArchived? })` | `CardWithCurrentInvoiceDTO[]` | `/cards`, dashboard |
+| `cards.listCardOptions(userId)` | `{ id, name }[]` dos cartões ativos | Novo lançamento (layout), `/subscriptions` |
 | `cards.getCard(userId, cardId)` | `CardDetailDTO` (cartão + fatura atual + últimas 12 faturas) | `/cards/[id]` |
 | `dashboard.getInvoiceView(userId, cardId, referenceMonth)` | `InvoiceDetailDTO` (inclui previstas) | `/cards/[id]/invoices/[ref]` |
 | `subscriptions.listSubscriptions(userId, { status?, cardId?, categoryId?, sort?, cursor?, limit? })` | `Page<SubscriptionDTO>` | `/subscriptions` |

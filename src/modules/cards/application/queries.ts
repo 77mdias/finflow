@@ -29,6 +29,16 @@ export async function limitUsageByCard(db: Db, userId: string): Promise<Map<stri
   return new Map(rows.map((r) => [r.card_id, r.used_cents]));
 }
 
+/** Cartões ativos só com id e apelido: opções dos formulários (Novo lançamento, assinaturas). */
+export async function listCardOptions(ctx: QueryContext): Promise<{ id: string; name: string }[]> {
+  const cards = await ctx.db.card.findMany({
+    where: { userId: ctx.user.id, archivedAt: null },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: { id: true, nickname: true },
+  });
+  return cards.map((c) => ({ id: c.id, name: c.nickname }));
+}
+
 export async function listCards(
   ctx: QueryContext,
   opts: { includeArchived?: boolean } = {},

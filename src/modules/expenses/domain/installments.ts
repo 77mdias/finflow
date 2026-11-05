@@ -29,15 +29,20 @@ export function splitInstallments(
     throw new RangeError(`Número de parcelas deve estar entre 1 e ${MAX_INSTALLMENTS}`);
   }
   if (totalCents <= 0n) throw new RangeError("Valor total deve ser positivo");
-  const base = totalCents / BigInt(n);
-  const rest = totalCents - base * BigInt(n);
+  const { base, first } = splitAmount(totalCents, n);
   return Array.from({ length: n }, (_, i) => ({
     number: i + 1,
     total: n,
     date: addMonthsTo(purchaseDate, i),
     invoice: invoiceFor(purchaseDate, card, i),
-    amountCents: i === 0 ? base + rest : base,
+    amountCents: i === 0 ? first : base,
   }));
+}
+
+/** RN-10: base = valor ÷ parcelas, para baixo; a 1ª leva o resto dos centavos. */
+export function splitAmount(totalCents: bigint, n: number): { base: bigint; first: bigint } {
+  const base = totalCents / BigInt(n);
+  return { base, first: totalCents - base * BigInt(n - 1) };
 }
 
 export const installmentDescription = (description: string, k: number, n: number): string =>

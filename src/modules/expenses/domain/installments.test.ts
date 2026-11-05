@@ -5,7 +5,7 @@ import { dateOf, parseDateOnly } from "@/shared/domain/date-only";
 
 import { invoiceFor } from "@/modules/invoices/domain/billing-cycle";
 
-import { installmentDescription, splitInstallments } from "./installments";
+import { installmentDescription, splitAmount, splitInstallments } from "./installments";
 
 const roxinho = { closingDay: 25, dueDay: 5 };
 
@@ -69,6 +69,26 @@ describe("splitInstallments (RN-10)", () => {
           const max = amounts.reduce((a, b) => (a > b ? a : b));
           const min = amounts.reduce((a, b) => (a < b ? a : b));
           expect(max - min).toBeLessThan(BigInt(n));
+        },
+      ),
+    );
+  });
+});
+
+describe("splitAmount (RN-10)", () => {
+  it("R$ 100,00 em 3x: 33,34 + 33,33 + 33,33", () => {
+    expect(splitAmount(10_000n, 3)).toEqual({ base: 3_333n, first: 3_334n });
+  });
+
+  it("as parcelas somam o total e a 1ª leva menos de n centavos a mais", () => {
+    fc.assert(
+      fc.property(
+        fc.bigInt({ min: 1n, max: 10_000_000_00n }),
+        fc.integer({ min: 1, max: 48 }),
+        (total, n) => {
+          const { base, first } = splitAmount(total, n);
+          expect(first + base * BigInt(n - 1)).toBe(total);
+          expect(first - base >= 0n && first - base < BigInt(n)).toBe(true);
         },
       ),
     );

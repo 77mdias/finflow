@@ -53,8 +53,19 @@ const COLOR_NAMES: Record<CardColor, string> = {
   black: "Preto",
 };
 
-/** Formulário de cartão (FLOW_MAP §4, RF-010 a RF-012) com pré-visualização ao vivo (DESIGN §6.7). */
-function CardForm({ card, onDone }: { card?: EditableCard; onDone: () => void }) {
+/**
+ * Formulário de cartão (FLOW_MAP §4, RF-010 a RF-012) com pré-visualização ao vivo (DESIGN §6.7).
+ * `onSaved` recebe o texto do aviso de confirmação (usado no Novo lançamento).
+ */
+export function CardForm({
+  card,
+  onDone,
+  onSaved,
+}: {
+  card?: EditableCard;
+  onDone: () => void;
+  onSaved?: (message: string) => void;
+}) {
   const [v, setV] = useState({
     nickname: card?.nickname ?? "",
     issuer: card?.issuer ?? "",
@@ -96,7 +107,10 @@ function CardForm({ card, onDone }: { card?: EditableCard; onDone: () => void })
         })
       : await createCard({ ...fields, last4: v.last4 || undefined, limit: v.limit || undefined });
     setBusy(false);
-    if (res.ok) return onDone();
+    if (res.ok) {
+      onSaved?.(card ? "Cartão atualizado" : `Cartão ${v.nickname.trim()} criado`);
+      return onDone();
+    }
     setErrors(res.error.fieldErrors ?? {});
     setMessage(res.error.code === "VALIDATION_ERROR" ? null : res.error.message);
   }
