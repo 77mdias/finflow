@@ -16,6 +16,8 @@ const schema = z
     BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET deve ter ao menos 32 caracteres"),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
+    DISCORD_CLIENT_ID: z.string().optional(),
+    DISCORD_CLIENT_SECRET: z.string().optional(),
     OAUTH_PROXY_PRODUCTION_URL: z.url().optional(),
 
     EMAIL_TRANSPORT: z.enum(["resend", "smtp", "memory"]).default("smtp"),

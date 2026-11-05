@@ -13,7 +13,7 @@ FinFlow é uma aplicação web para **controle pessoal de custos recorrentes**. 
 
 - **App:** Next.js 16 (App Router) + React 19 + TypeScript 6, Node.js 24 LTS
 - **Dados:** PostgreSQL 16 (Neon em produção) + Prisma 7 (`@prisma/adapter-pg`)
-- **Auth:** Better Auth (magic link por e-mail + Google OAuth)
+- **Auth:** Better Auth (magic link por e-mail + Google e Discord OAuth)
 - **E-mail:** Resend (produção) · Mailpit (local)
 - **Jobs:** Vercel Cron → rotas idempotentes `/api/cron/*`
 - **Qualidade:** Vitest (+ fast-check), ESLint, Prettier, dependency-cruiser, GitHub Actions

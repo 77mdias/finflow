@@ -2,18 +2,29 @@ import { CircleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { googleEnabled } from "@/lib/auth";
+import { oauthProviders } from "@/lib/auth";
 
 import { AuthForm } from "../auth-form";
 
 export const metadata: Metadata = { title: "Entrar — FinFlow" };
 
-/** O link mágico e o Google voltam para cá com `?error=` quando falham. */
+/** Códigos que o Better Auth manda em `?error=` quando o link mágico ou o Google/Discord falham. */
+const ERRORS = new Map([
+  ["INVALID_TOKEN", "Este link de acesso expirou ou já foi usado. Peça um novo abaixo."],
+  ["access_denied", "O acesso foi cancelado. Escolha outra forma de entrar quando quiser."],
+  [
+    "account_not_linked",
+    "Já existe uma conta com este e-mail, mas o provedor não confirmou que ele é seu. Entre pelo link no e-mail.",
+  ],
+  [
+    "email_not_found",
+    "Sua conta no provedor não tem um e-mail confirmado. Confirme o e-mail lá ou entre pelo link no e-mail.",
+  ],
+]);
+
 function errorMessage(error: string | string[] | undefined): string | null {
   if (!error) return null;
-  return error === "INVALID_TOKEN"
-    ? "Este link de acesso expirou ou já foi usado. Peça um novo abaixo."
-    : "Não foi possível concluir o acesso. Tente de novo.";
+  return ERRORS.get(String(error)) ?? "Não foi possível concluir o acesso. Tente de novo.";
 }
 
 export default async function SignInPage({
@@ -22,14 +33,15 @@ export default async function SignInPage({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const notice = errorMessage((await searchParams).error);
-  const google = googleEnabled();
+  const providers = oauthProviders();
   return (
     <>
       <div className="mt-8 w-full max-w-[420px] rounded-xl bg-surface p-6 shadow-hairline sm:p-8">
         <h1 className="font-display text-heading">Entrar no FinFlow</h1>
         <p className="mt-2 text-body text-fg-muted">
-          {google ? "Use sua conta Google ou receba" : "Receba"} um link de acesso no e-mail. Sem senha para
-          lembrar.
+          {providers.length > 0
+            ? "Escolha como quer entrar. Sem senha para lembrar."
+            : "Receba um link de acesso no e-mail. Sem senha para lembrar."}
         </p>
         {notice && (
           <p
@@ -40,7 +52,7 @@ export default async function SignInPage({
             {notice}
           </p>
         )}
-        <AuthForm mode="entrar" google={google} />
+        <AuthForm mode="entrar" providers={providers} />
       </div>
       <p className="mt-6 text-center text-body-sm text-fg-muted">
         Ainda não tem conta?{" "}
