@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Notification, NotificationPreference } from "@/generated/prisma/client";
 import type { QueryContext, UseCaseContext } from "@/shared/application/context";
 import { day, iso, isoOrNull, n } from "@/shared/application/dto";
-import { Id, MoneyInput } from "@/shared/application/schemas";
+import { Id, NonNegativeMoneyInput } from "@/shared/application/schemas";
 import { AppError } from "@/shared/domain/errors";
 
 export const NotificationIdSchema = z.object({ id: Id });
@@ -15,7 +15,7 @@ export const UpdatePreferencesSchema = z
     invoiceDueEnabled: z.boolean(),
     invoiceDueDaysBefore: z.int().min(0).max(10),
     subscriptionDaysBefore: z.int().min(0).max(10).nullable(),
-    subscriptionMin: MoneyInput,
+    subscriptionMin: NonNegativeMoneyInput,
     trialReminders: z.boolean(),
     overdueAlerts: z.boolean(),
     dailyDigest: z.boolean(),
