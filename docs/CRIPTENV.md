@@ -66,6 +66,8 @@ bash scripts/criptenv-setup.sh credentials
 docker compose --profile app up --build      # http://localhost:3000 · e-mails em http://localhost:8025
 ```
 
+**O que o container mostra.** O app roda `pnpm dev` sobre a pasta de onde o `docker compose` foi chamado (bind mount `.:/app`), com hot reload. Ele mostra o código **dessa pasta e do branch dela**: um `git pull` aparece na hora, mas trabalho feito em outro worktree (por exemplo, `.claude/worktrees/*` das sessões do Claude) só aparece depois de mergeado e puxado aqui. Se o pull trouxe dependências novas, reinicie o app (`docker compose --profile app restart app`): no start ele instala o que mudou no lockfile.
+
 Secrets criados pelo `seed-vault` (endereços da rede do compose):
 
 | Chave | Valor |
