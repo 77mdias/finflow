@@ -56,6 +56,13 @@ export const CreateCardSchema = CardFields;
 export const UpdateCardSchema = CardFields.partial().extend({
   id: Id,
   expectedUpdatedAt: ExpectedUpdatedAt,
+  /** "" remove a instituição (no cadastro, vazio só significa "não informada") */
+  issuer: z
+    .string()
+    .trim()
+    .max(60, "Máximo de 60 caracteres")
+    .transform((v) => v || null)
+    .optional(),
   /** null remove o limite / os 4 dígitos */
   limit: MoneyInput.nullable().optional(),
   last4: z
