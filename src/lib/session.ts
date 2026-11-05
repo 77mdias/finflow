@@ -17,7 +17,10 @@ export type SessionProvider = () => Promise<SessionUser | null>;
 
 /** Lê a sessão do Better Auth (cookie) e carrega o usuário do banco. */
 const betterAuthSession: SessionProvider = async () => {
-  const session = await auth().api.getSession({ headers: await headers() });
+  // `headers()` antes de `auth()`: marca a página como dinâmica antes de ler o ambiente,
+  // senão o `next build` (sem segredos) tenta pré-renderizá-la e falha na validação do env.
+  const requestHeaders = await headers();
+  const session = await auth().api.getSession({ headers: requestHeaders });
   if (!session) return null;
   const user = await prisma().user.findUnique({
     where: { id: session.user.id },
