@@ -41,7 +41,7 @@ afterEach(() => {
 
 async function login() {
   const u = await makeUser();
-  current = { ...u, deletedAt: null };
+  current = { ...u, deletedAt: null, onboardingCompletedAt: new Date() };
   return u;
 }
 

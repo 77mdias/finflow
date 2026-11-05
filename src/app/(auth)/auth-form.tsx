@@ -19,8 +19,12 @@ const PROVIDERS: Record<OAuthProvider, { name: string; Mark: ComponentType }> = 
   discord: { name: "Discord", Mark: DiscordMark },
 };
 
-// shortcut: conta nova também vai para o painel até existir /onboarding (RF-003, RF-080).
-const REDIRECTS = { callbackURL: "/dashboard", errorCallbackURL: "/entrar" };
+// Conta nova começa pelo onboarding (RF-003, RF-080).
+const REDIRECTS = {
+  callbackURL: "/dashboard",
+  newUserCallbackURL: "/onboarding",
+  errorCallbackURL: "/entrar",
+};
 
 async function post(path: string, body: object): Promise<Response> {
   return fetch(`/api/auth${path}`, {

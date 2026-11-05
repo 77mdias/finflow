@@ -31,6 +31,7 @@ const NAV: { href: Route; label: string; Icon: typeof House }[] = [
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await currentUser();
   if (!user) redirect("/entrar");
+  if (!user.onboardingCompletedAt) redirect("/onboarding");
   // Opções do Novo lançamento, disponível em todas as telas.
   const ctx = { db: prisma(), user, clock: systemClock };
   const [cards, categories] = await Promise.all([listCardOptions(ctx), listCategories(ctx.db, user.id)]);
