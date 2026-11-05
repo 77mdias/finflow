@@ -184,7 +184,8 @@ export async function updateExpense(
   if (financial && (await lockedInstallments(ctx.tx, e.id)) > 0) {
     throw new AppError("INVOICE_LOCKED", "Há parcelas em faturas fechadas. Lance um ajuste na fatura.");
   }
-  const card = await activeCard(ctx.tx, ctx.user.id, input.cardId ?? e.cardId);
+  // Só o relançamento exige cartão ativo: descrição/categoria podem mudar em cartão arquivado.
+  const card = financial ? await activeCard(ctx.tx, ctx.user.id, input.cardId ?? e.cardId) : null;
   const updated = await ctx.tx.expense.update({
     where: { id: e.id },
     data: {
@@ -200,7 +201,7 @@ export async function updateExpense(
   const today = todayOf(ctx);
   if (financial) {
     await removeCharges(ctx.tx, { userId: ctx.user.id, expenseId: e.id }, today);
-    await postInstallments(ctx.tx, updated, card, today);
+    await postInstallments(ctx.tx, updated, card!, today);
   } else if (regenerate) {
     // Descrição/categoria: atualiza o snapshot apenas nas parcelas de faturas abertas.
     const open = await ctx.tx.charge.findMany({ where: { expenseId: e.id, invoice: { status: "OPEN" } } });
@@ -255,7 +256,8 @@ export async function listExpenses(
         : {}),
     },
     orderBy: [{ purchaseDate: "desc" }, { createdAt: "desc" }],
-    take: 100,
+    // Um mês é limitado por natureza e a tela soma o mês inteiro; sem mês, só as 100 mais recentes.
+    ...(filters.month ? {} : { take: 100 }),
   });
   // Uma consulta para todas as parcelas, em vez de uma por despesa.
   const charges = await ctx.db.charge.findMany({

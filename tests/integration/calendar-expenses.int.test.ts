@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { parseDateOnly, parseYearMonth } from "@/shared/domain/date-only";
 import { transaction } from "@/shared/infrastructure/db";
 
-import { createCard } from "@/modules/cards";
+import { archiveCard, createCard } from "@/modules/cards";
 import { getCalendar } from "@/modules/dashboard";
-import { createExpense, listExpenses } from "@/modules/expenses";
+import { createExpense, listExpenses, updateExpense } from "@/modules/expenses";
 import { createSubscription, materializeDueSubscriptions } from "@/modules/subscriptions";
 
 import { at, db, makeUser, queryCtx, run, resetDatabaseBeforeEach } from "../support/db";
@@ -86,6 +86,17 @@ describe("calendário (getCalendar)", () => {
     );
   });
 
+  it("respeita as datas gravadas da fatura quando o ciclo calculado cairia no intervalo", async () => {
+    const { ana, card } = await scenario();
+    // Fatura de dez/26 gravada com datas fora de novembro (ex.: o ciclo do cartão mudou depois).
+    await db.invoice.update({
+      where: { cardId_referenceMonth: { cardId: card.id, referenceMonth: "2026-12" } },
+      data: { closingDate: new Date("2026-12-01T00:00:00Z"), dueDate: new Date("2026-12-10T00:00:00Z") },
+    });
+    const events = await getCalendar(queryCtx(ana, at("2026-11-10")), d("2026-11-01"), d("2026-11-30"));
+    expect(events.filter((e) => e.type === "INVOICE_CLOSING")).toEqual([]);
+  });
+
   it("aceita até 42 dias (grade de 6 semanas) e recusa intervalos invertidos ou maiores", async () => {
     const ana = await makeUser();
     const ctx = queryCtx(ana, at("2026-11-10"));
@@ -96,6 +107,43 @@ describe("calendário (getCalendar)", () => {
     await expect(getCalendar(ctx, d("2026-11-01"), d("2026-12-13"))).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
     });
+  });
+});
+
+describe("despesas: lista do mês e cartão arquivado", () => {
+  it("com filtro de mês, traz todas as compras do mês (sem o corte de 100)", async () => {
+    const { ana, card } = await scenario();
+    for (let i = 0; i < 101; i++) {
+      await run(ana, at("2026-12-02"), (ctx) =>
+        createExpense(ctx, {
+          description: `Café ${i}`,
+          total: 500n,
+          purchaseDate: d("2026-12-02"),
+          cardId: card.id,
+          installments: 1,
+        }),
+      );
+    }
+    const ctx = queryCtx(ana, at("2026-12-02"));
+    expect(await listExpenses(ctx, { month: parseYearMonth("2026-12") })).toHaveLength(101);
+    expect(await listExpenses(ctx)).toHaveLength(100);
+  });
+
+  it("edita descrição em cartão arquivado, mas não relança parcelas nele", async () => {
+    const { ana, card } = await scenario();
+    const [mercado] = await listExpenses(queryCtx(ana, at("2026-11-20")), {
+      month: parseYearMonth("2026-10"),
+    });
+    await run(ana, at("2026-11-20"), (ctx) => archiveCard(ctx, { id: card.id, cancelSubscriptions: true }));
+    const renamed = await run(ana, at("2026-11-20"), (ctx) =>
+      updateExpense(ctx, { id: mercado!.id, description: "Mercado do mês" }),
+    );
+    expect(renamed.description).toBe("Mercado do mês");
+    await expect(
+      run(ana, at("2026-11-20"), (ctx) =>
+        updateExpense(ctx, { id: mercado!.id, purchaseDate: d("2026-11-21") }),
+      ),
+    ).rejects.toMatchObject({ code: "CARD_ARCHIVED" });
   });
 });
 

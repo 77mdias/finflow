@@ -262,6 +262,9 @@ export async function getCalendar(
         OR: [
           { closingDate: { gte: toDbDate(from), lte: toDbDate(to) } },
           { dueDate: { gte: toDbDate(from), lte: toDbDate(to) } },
+          // Faturas dos ciclos que o calendário calcularia: as datas gravadas valem sobre o ciclo
+          // atual do cartão (que pode ter mudado depois), mesmo quando caem fora do intervalo.
+          { referenceMonth: { gte: yearMonthOf(from), lte: addYearMonths(yearMonthOf(to), 2) } },
         ],
       },
     }),
