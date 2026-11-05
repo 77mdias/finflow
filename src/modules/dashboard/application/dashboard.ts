@@ -14,6 +14,7 @@ import { AppError } from "@/shared/domain/errors";
 
 import { listCards } from "@/modules/cards";
 import {
+  invoiceFor,
   invoiceForReference,
   toChargeDTO,
   toInvoiceSummaryDTO,
@@ -239,19 +240,49 @@ export async function getDashboard(ctx: QueryContext, month?: string) {
   const categories = await ctx.db.category.findMany({ where: { userId: ctx.user.id } });
   // RF-050: todas as faturas com vencimento no mês (RN-04: referenceMonth = mês do vencimento),
   // inclusive já fechadas, + cobranças previstas das faturas abertas/futuras.
-  const materialized = await ctx.db.invoice.aggregate({
-    where: { userId: ctx.user.id, referenceMonth: ref },
-    _sum: { totalCents: true },
-  });
-  const projectedThisMonth = projection.months
-    .filter((m) => m.referenceMonth === ref)
-    .flatMap((m) => m.byCard)
-    .reduce((sum, c) => sum + c.projectedCents, 0);
-  const committed = n(materialized._sum.totalCents ?? 0n) + projectedThisMonth;
+  const committedIn = async (m: YearMonth) => {
+    const materialized = await ctx.db.invoice.aggregate({
+      where: { userId: ctx.user.id, referenceMonth: m },
+      _sum: { totalCents: true },
+    });
+    const projected = projection.months
+      .filter((p) => p.referenceMonth === m)
+      .flatMap((p) => p.byCard)
+      .reduce((sum, c) => sum + c.projectedCents, 0);
+    return n(materialized._sum.totalCents ?? 0n) + projected;
+  };
+  const [committed, previous] = await Promise.all([committedIn(ref), committedIn(addYearMonths(ref, -1))]);
   return {
     month: ref,
     committedThisMonthCents: committed,
+    previousMonthCents: previous,
     recurringMonthlyCents: n(recurring),
+    // Fatura atual de cada cartão (lançado + previsto); a projeção começa no ciclo atual.
+    cards: cards.map((c) => {
+      const period = invoiceFor(today, c);
+      const forecast = projection.months
+        .find((m) => m.referenceMonth === period.referenceMonth)
+        ?.byCard.find((b) => b.cardId === c.id);
+      return {
+        id: c.id,
+        nickname: c.nickname,
+        issuer: c.issuer,
+        brand: c.brand,
+        last4: c.last4,
+        color: c.color,
+        closingDay: c.closingDay,
+        dueDay: c.dueDay,
+        limitCents: c.limitCents,
+        usedLimitCents: c.usedLimitCents,
+        currentInvoice: {
+          referenceMonth: period.referenceMonth,
+          dueDate: c.currentInvoice?.dueDate ?? period.dueDate,
+          status: c.currentInvoice?.status ?? ("OPEN" as const),
+          totalCents: forecast?.totalCents ?? c.currentInvoice?.totalCents ?? 0,
+          projectedCents: forecast?.projectedCents ?? 0,
+        },
+      };
+    }),
     overdueInvoices: overdue.map(toInvoiceSummaryDTO),
     upcoming,
     limitUsage: cards
