@@ -1,3 +1,5 @@
+import { initials } from "@/shared/ui/format";
+
 /**
  * Instituições conhecidas (DESIGN §2.5): cor de referência e iniciais do selo, com contraste AA
  * medido. Aproximações para reconhecer o cartão, nunca logotipos.
@@ -21,16 +23,10 @@ export const INSTITUTIONS: ReadonlyArray<{ name: string; initials: string; color
 
 const normalize = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").trim().toLowerCase();
 
-/** "Banco Pan" → "BP", "Sicredi" → "SI". */
-const initialsOf = (issuer: string) => {
-  const words = issuer.trim().split(/\s+/);
-  return (words.length > 1 ? words[0]!.charAt(0) + words[1]!.charAt(0) : words[0]!.slice(0, 2)).toUpperCase();
-};
-
 /** Selo de um emissor: cor e iniciais da tabela, ou `ink-600` com as iniciais do texto livre. */
 export function institutionBadge(issuer: string): { initials: string; color: string; dark: boolean } {
   const known = INSTITUTIONS.find((i) => normalize(i.name) === normalize(issuer));
   return known
     ? { initials: known.initials, color: known.color, dark: known.dark ?? false }
-    : { initials: initialsOf(issuer), color: "var(--color-ink-600)", dark: false };
+    : { initials: initials(issuer), color: "var(--color-ink-600)", dark: false };
 }

@@ -16,6 +16,12 @@ const DAY = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "UTC",
 });
 const DAY_MONTH = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
+const DATE = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -27,6 +33,8 @@ export const monthName = (ym: string): string => MONTH_NAME.format(noon(`${ym}-0
 export const monthShort = (ym: string): string => MONTH_SHORT.format(noon(`${ym}-01`)).replace(".", "");
 /** "05/12" */
 export const dayMonth = (d: string): string => DAY_MONTH.format(noon(d));
+/** "05/12/2026" */
+export const fullDate = (d: string): string => DATE.format(noon(d));
 
 /** "Hoje", "Amanhã" ou "qui., 6 de nov." */
 export function dayLabel(d: DateOnly, today: DateOnly): string {
@@ -38,3 +46,9 @@ export function dayLabel(d: DateOnly, today: DateOnly): string {
 const DECIMAL = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /** 123456 → "1.234,56": valor inicial de campos de dinheiro (sem "R$", que é prefixo fixo). */
 export const decimal = (cents: number): string => DECIMAL.format(cents / 100);
+
+/** Iniciais para selos e avatares: "Banco Pan" → "BP", "Netflix" → "NE". */
+export function initials(text: string): string {
+  const words = text.trim().split(/\s+/);
+  return (words.length > 1 ? words[0]!.charAt(0) + words[1]!.charAt(0) : words[0]!.slice(0, 2)).toUpperCase();
+}
