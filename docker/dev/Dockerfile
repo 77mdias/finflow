@@ -43,6 +43,9 @@ COPY --chown=finflow:finflow --chmod=0755 docker/dev/entrypoint.sh /usr/local/bi
 
 EXPOSE 3000
 ENTRYPOINT ["finflow-entrypoint"]
-# Regenera o Prisma Client (reflete mudanças no schema a cada start), aplica migrações
-# e sobe o servidor de desenvolvimento — tudo com os secrets do cofre.
-CMD ["sh", "-c", "pnpm db:generate && pnpm db:deploy && exec pnpm dev --hostname 0.0.0.0"]
+# A cada start, com os secrets do cofre:
+# 1. Se o lockfile mudou desde a última instalação, instala as dependências novas (o node_modules
+#    vive num volume que o rebuild da imagem não atualiza) e descarta o cache do Turbopack, que
+#    guarda "módulo não encontrado" de antes da instalação.
+# 2. Regenera o Prisma Client (reflete mudanças no schema), aplica migrações e sobe o servidor.
+CMD ["sh", "-c", "(cmp -s pnpm-lock.yaml node_modules/.lock-instalado || (pnpm install --frozen-lockfile --config.confirmModulesPurge=false && rm -rf .next/dev/cache && cp pnpm-lock.yaml node_modules/.lock-instalado)) && pnpm db:generate && pnpm db:deploy && exec pnpm dev --hostname 0.0.0.0"]
