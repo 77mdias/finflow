@@ -6,6 +6,7 @@ import { useState, type ComponentType, type FormEvent } from "react";
 
 import type { OAuthProvider } from "@/lib/auth";
 import { button } from "@/shared/ui/button";
+import { FIELD } from "@/shared/ui/field";
 
 type State =
   | { status: "idle" | "sending" }
@@ -20,10 +21,6 @@ const PROVIDERS: Record<OAuthProvider, { name: string; Mark: ComponentType }> = 
 
 // shortcut: conta nova também vai para o painel até existir /onboarding (RF-003, RF-080).
 const REDIRECTS = { callbackURL: "/dashboard", errorCallbackURL: "/entrar" };
-
-const FIELD =
-  "mt-1.5 h-11 w-full rounded-md bg-surface-subtle px-4 text-body text-fg transition-colors duration-150 " +
-  "outline-none placeholder:text-fg-subtle hover:bg-surface-muted focus-visible:bg-surface focus-visible:ring-2 focus-visible:ring-ring";
 
 async function post(path: string, body: object): Promise<Response> {
   return fetch(`/api/auth${path}`, {

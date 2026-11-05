@@ -1,4 +1,5 @@
-import { House } from "lucide-react";
+import { CreditCard, House } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -9,9 +10,15 @@ import { Logo } from "@/shared/ui/logo";
 import { NavLink } from "./nav-link";
 import { SignOutButton } from "./sign-out-button";
 
+// shortcut: Assinaturas, Calendário e o FAB "+" entram na navegação junto com as telas deles.
+const NAV: { href: Route; label: string; Icon: typeof House }[] = [
+  { href: "/dashboard", label: "Início", Icon: House },
+  { href: "/cards", label: "Cartões", Icon: CreditCard },
+];
+
 /**
- * Área autenticada (DESIGN §6.9): sidebar de 248 px a partir de `lg`, barra no topo no celular.
- * shortcut: só "Início" na navegação; bottom nav (4 itens) e FAB entram junto com Cartões, Assinaturas e Calendário.
+ * Área autenticada (DESIGN §6.9): sidebar de 248 px a partir de `lg`; no celular, barra no topo e
+ * bottom nav de 64 px + safe-area.
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await currentUser();
@@ -24,9 +31,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Logo />
         </Link>
         <nav aria-label="Principal" className="mt-8 flex flex-col gap-1">
-          <NavLink href="/dashboard" icon={<House aria-hidden size={20} strokeWidth={1.5} />}>
-            Início
-          </NavLink>
+          {NAV.map(({ href, label, Icon }) => (
+            <NavLink key={href} href={href} icon={<Icon aria-hidden size={20} strokeWidth={1.5} />}>
+              {label}
+            </NavLink>
+          ))}
         </nav>
         <div className="mt-auto border-t border-border pt-4">
           <p className="truncate px-3 text-body-sm text-fg-muted" title={user.email}>
@@ -43,8 +52,31 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </Link>
           <SignOutButton />
         </header>
-        <main className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6 lg:px-10 lg:py-10">{children}</main>
+        <main className="mx-auto w-full max-w-[1120px] px-4 pt-8 pb-28 sm:px-6 lg:px-10 lg:py-10">
+          {children}
+        </main>
       </div>
+
+      <nav
+        aria-label="Principal"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg pb-[env(safe-area-inset-bottom)] lg:hidden"
+      >
+        <div
+          className="mx-auto grid h-16 max-w-md"
+          style={{ gridTemplateColumns: `repeat(${NAV.length}, 1fr)` }}
+        >
+          {NAV.map(({ href, label, Icon }) => (
+            <NavLink
+              key={href}
+              href={href}
+              variant="bottom"
+              icon={<Icon aria-hidden size={22} strokeWidth={1.5} />}
+            >
+              {label}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }

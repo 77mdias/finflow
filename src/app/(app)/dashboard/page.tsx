@@ -1,12 +1,4 @@
-import {
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  Equal,
-  Repeat,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { ChevronRight, CircleAlert, Equal, Repeat, TrendingDown, TrendingUp } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -14,22 +6,23 @@ import type { ReactNode } from "react";
 
 import { currentUser } from "@/lib/session";
 import { todayOf } from "@/shared/application/context";
-import { addYearMonths, type YearMonth } from "@/shared/domain/date-only";
+import { addYearMonths, isYearMonth, type YearMonth } from "@/shared/domain/date-only";
 import { systemClock } from "@/shared/infrastructure/clock";
 import { prisma } from "@/shared/infrastructure/db";
-import { brl, dayMonth, monthLabel, monthName } from "@/shared/ui/format";
+import { button } from "@/shared/ui/button";
+import { brl, dayMonth, monthName } from "@/shared/ui/format";
 import { MoneyDisplay } from "@/shared/ui/money-display";
+import { MonthNav } from "@/shared/ui/month-nav";
 
+import { NewCardButton } from "@/modules/cards/ui/components/card-form";
 import { getDashboard } from "@/modules/dashboard";
 import { CategoryBreakdown } from "@/modules/dashboard/ui/components/category-breakdown";
 import { ProjectionChart } from "@/modules/dashboard/ui/components/projection-chart";
 import { UpcomingList } from "@/modules/dashboard/ui/components/upcoming-list";
 
-import { CardSummary } from "./card-summary";
+import { CardSummary } from "../card-summary";
 
 export const metadata: Metadata = { title: "Início — FinFlow" };
-
-const YEAR_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 function Panel({
   title,
@@ -85,7 +78,7 @@ export default async function DashboardPage({
   if (!user) redirect("/entrar");
   const { mes } = await searchParams;
   const ctx = { db: prisma(), user, clock: systemClock };
-  const d = await getDashboard(ctx, typeof mes === "string" && YEAR_MONTH.test(mes) ? mes : undefined);
+  const d = await getDashboard(ctx, typeof mes === "string" && isYearMonth(mes) ? mes : undefined);
   const today = todayOf(ctx);
   const month = d.month as YearMonth;
   const previousMonth = addYearMonths(month, -1);
@@ -95,31 +88,11 @@ export default async function DashboardPage({
     <div className="flex flex-col gap-8 lg:gap-12">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-display text-heading-lg">Início</h1>
-        <nav
-          aria-label="Mês do painel"
-          className="flex items-center gap-1 rounded-full bg-surface-subtle p-1 text-label"
-        >
-          <Link
-            href={{ pathname: "/dashboard", query: { mes: previousMonth } }}
-            aria-label={`Ver ${monthLabel(previousMonth)}`}
-            className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface hover:text-fg"
-          >
-            <ChevronLeft aria-hidden size={18} strokeWidth={1.5} />
-          </Link>
-          <span
-            aria-live="polite"
-            className="min-w-36 rounded-full bg-surface px-3 py-1.5 text-center shadow-sm"
-          >
-            {monthLabel(month)}
-          </span>
-          <Link
-            href={{ pathname: "/dashboard", query: { mes: addYearMonths(month, 1) } }}
-            aria-label={`Ver ${monthLabel(addYearMonths(month, 1))}`}
-            className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface hover:text-fg"
-          >
-            <ChevronRight aria-hidden size={18} strokeWidth={1.5} />
-          </Link>
-        </nav>
+        <MonthNav
+          month={month}
+          label="Mês do painel"
+          href={(m) => ({ pathname: "/dashboard", query: { mes: m } })}
+        />
       </header>
 
       <section aria-labelledby="total-mes" className="rounded-xl bg-surface p-6 shadow-hairline sm:p-10">
@@ -166,16 +139,24 @@ export default async function DashboardPage({
       )}
 
       <section aria-labelledby="cartoes">
-        <h2 id="cartoes" className="font-display text-heading-sm">
-          Seus cartões
-        </h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 id="cartoes" className="font-display text-heading-sm">
+            Seus cartões
+          </h2>
+          {d.cards.length > 0 && (
+            <Link href="/cards" className={button("ghost", "sm")}>
+              Ver cartões
+              <ChevronRight aria-hidden size={16} strokeWidth={1.5} />
+            </Link>
+          )}
+        </div>
         {d.cards.length === 0 ? (
-          // shortcut: estado vazio sem botão até existir o cadastro de cartões (DESIGN §6.11 pede 1 botão primary).
           <div className="mt-4 rounded-xl bg-surface p-8 text-center shadow-hairline">
             <h3 className="font-display text-heading-sm">Nenhum cartão ainda</h3>
             <p className="mt-2 text-body text-fg-muted">
               Crie seu primeiro cartão para começar a acompanhar suas faturas.
             </p>
+            <NewCardButton className={`${button("primary", "md")} mt-6`}>Criar cartão</NewCardButton>
           </div>
         ) : (
           <div className="relative -mx-4 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:px-0">

@@ -33,6 +33,8 @@ export function isDateOnly(value: string): value is DateOnly {
   }
 }
 
+export const isYearMonth = (value: string): value is YearMonth => YM_RE.test(value);
+
 export function parseYearMonth(value: string): YearMonth {
   if (!YM_RE.test(value)) throw new RangeError(`Mês de referência inválido: ${value}`);
   return value as YearMonth;
