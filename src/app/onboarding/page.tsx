@@ -39,11 +39,10 @@ export default async function OnboardingPage() {
       <Wizard
         cards={cards}
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
-        subscriptions={subscriptions.map((s) => ({
-          id: s.id,
-          name: s.name,
-          monthlyCents: s.monthlyEquivalentCents,
-        }))}
+        // Só o que cobra entra na lista e no total, como na tela de assinaturas.
+        subscriptions={subscriptions
+          .filter((s) => s.status === "ACTIVE" || s.status === "TRIAL")
+          .map((s) => ({ id: s.id, name: s.name, monthlyCents: s.monthlyEquivalentCents }))}
         prefs={prefs}
         today={todayOf(ctx)}
       />
