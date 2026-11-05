@@ -41,8 +41,8 @@ export default function PrivacyPage() {
             categorias.
           </li>
           <li>
-            <strong>Técnicos:</strong> cookies de sessão, o IP transformado em hash (para limitar tentativas
-            de acesso e registrar o aceite destes documentos) e registros de erro.
+            <strong>Técnicos:</strong> cookies de sessão, o IP transformado em hash (só para limitar
+            tentativas de acesso, em contadores temporários) e registros de erro.
           </li>
         </ul>
       </Section>

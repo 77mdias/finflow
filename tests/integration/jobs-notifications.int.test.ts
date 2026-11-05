@@ -195,6 +195,22 @@ describe("dashboard e projeção", () => {
     expect(dash.recurringMonthlyCents).toBe(5_590);
     expect(dash.upcoming.map((e) => e.type)).toEqual(["SUBSCRIPTION_CHARGE", "INVOICE_DUE"]);
     expect(dash.byCategory).toHaveLength(1);
+    // Fechou dia 25: a fatura atual do cartão passa a ser a de janeiro, só com a Netflix prevista.
+    expect(dash.cards).toMatchObject([
+      {
+        id: card.id,
+        currentInvoice: {
+          referenceMonth: "2027-01",
+          status: "OPEN",
+          totalCents: 5_590,
+          projectedCents: 5_590,
+        },
+      },
+    ]);
+    // Variação: o mês anterior de janeiro é o comprometido de dezembro.
+    const january = await getDashboard(queryCtx(u, at("2026-11-30")), "2027-01");
+    expect(january.committedThisMonthCents).toBe(5_590);
+    expect(january.previousMonthCents).toBe(84_217);
   });
 });
 

@@ -91,6 +91,7 @@
   --shadow-sm: 0 1px 2px rgb(33 29 38 / 0.06);
   --shadow-md: 0 8px 20px rgb(33 29 38 / 0.06), 0 0 6px rgb(0 0 0 / 0.06);
   --shadow-lg: 0 24px 48px rgb(33 29 38 / 0.12), 0 0 0 1px var(--border);
+  --shadow-card: 0 12px 28px rgb(33 29 38 / 0.18);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
@@ -202,6 +203,15 @@
   --status-danger-fg: var(--color-danger-700);
   --status-info: var(--color-iris-50);
   --status-info-fg: var(--color-iris-700);
+  /* Categorias nos gráficos (DESIGN §2.4), nesta ordem: validada para daltonismo nos dois temas. */
+  --chart-cat-1: #8571ff;
+  --chart-cat-2: #12b76a;
+  --chart-cat-3: #0b83c4;
+  --chart-cat-4: #db2777;
+  --chart-cat-5: #d97706;
+  --chart-cat-6: #4f8bff;
+  --chart-cat-7: #f04438;
+  --chart-cat-other: var(--color-ink-200);
   color-scheme: light;
 }
 
@@ -234,6 +244,8 @@
   --status-danger-fg: #f97066;
   --status-info: rgb(155 140 255 / 0.14);
   --status-info-fg: var(--color-iris-300);
+  --chart-cat-2: #10a865;
+  --chart-cat-other: var(--color-ink-600);
   color-scheme: dark;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -275,6 +287,8 @@
     --status-danger-fg: #f97066;
     --status-info: rgb(155 140 255 / 0.14);
     --status-info-fg: var(--color-iris-300);
+    --chart-cat-2: #10a865;
+    --chart-cat-other: var(--color-ink-600);
     color-scheme: dark;
   }
 }
