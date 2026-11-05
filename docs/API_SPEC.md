@@ -284,7 +284,7 @@ Funções de servidor chamadas por Server Components; todas recebem `userId` com
 | `dashboard.getDashboard(userId, month)` | `DashboardDTO` | `/dashboard` |
 | `dashboard.getCardsOverview(userId)` | `DashboardDTO["cards"]`, inclusive arquivados (por último) | `/cards` |
 | `dashboard.getProjection(userId, months = 12)` | `ProjectionDTO` | `/dashboard` |
-| `dashboard.getCalendar(userId, from, to)` | `CalendarEventDTO[]` | `/calendar` |
+| `dashboard.getCalendar(userId, from, to)` | `CalendarEventDTO[]` (intervalo de até 42 dias) | `/calendar` |
 | `notifications.list(userId, { cursor?, limit? })` | `Page<NotificationDTO>` | `/notifications` |
 | `notifications.unreadCount(userId)` | `number` | sino (layout) |
 | `categories.list(userId)` | `CategoryDTO[]` | formulários, filtros |
@@ -368,6 +368,7 @@ interface CalendarEventDTO {
   type: "SUBSCRIPTION_CHARGE" | "INVOICE_CLOSING" | "INVOICE_DUE" | "TRIAL_ENDING" | "INSTALLMENT";
   title: string; amountCents: number | null;
   href: string;                                      // link interno
+  projected: boolean;                                // cobrança prevista, ainda fora da fatura
 }
 interface NotificationDTO {
   id: string; type: NotificationType; title: string; body: string | null;

@@ -2,7 +2,7 @@ import { ChevronRight, CircleAlert, Equal, Repeat, TrendingDown, TrendingUp } fr
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { currentUser } from "@/lib/session";
 import { todayOf } from "@/shared/application/context";
@@ -27,15 +27,26 @@ export const metadata: Metadata = { title: "Início — FinFlow" };
 function Panel({
   title,
   children,
+  action,
   className = "",
 }: {
   title: string;
   children: ReactNode;
+  /** Link "ver tudo" à direita do título. */
+  action?: { href: ComponentProps<typeof Link>["href"]; label: string };
   className?: string;
 }) {
   return (
     <section className={`min-w-0 rounded-xl bg-surface p-5 shadow-hairline sm:p-6 ${className}`}>
-      <h2 className="font-display text-heading-sm">{title}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-heading-sm">{title}</h2>
+        {action && (
+          <Link href={action.href} className={`${button("ghost", "sm")} -mr-2 shrink-0`}>
+            {action.label}
+            <ChevronRight aria-hidden size={16} strokeWidth={1.5} />
+          </Link>
+        )}
+      </div>
       <div className="mt-5">{children}</div>
     </section>
   );
@@ -177,10 +188,13 @@ export default async function DashboardPage({
       </Panel>
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-4">
-        <Panel title="Próximos 14 dias">
+        <Panel title="Próximos 14 dias" action={{ href: "/calendar", label: "Calendário" }}>
           <UpcomingList events={d.upcoming} today={today} />
         </Panel>
-        <Panel title={`Gastos de ${monthName(month)} por categoria`}>
+        <Panel
+          title={`Gastos de ${monthName(month)} por categoria`}
+          action={{ href: { pathname: "/expenses", query: { mes: month } }, label: "Despesas" }}
+        >
           <CategoryBreakdown items={d.byCategory} />
         </Panel>
       </div>

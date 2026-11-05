@@ -3,6 +3,7 @@ import { n } from "@/shared/application/dto";
 import {
   addDays,
   addYearMonths,
+  daysBetween,
   fromDbDate,
   parseYearMonth,
   toDbDate,
@@ -147,11 +148,15 @@ export async function getInvoiceView(ctx: QueryContext, cardId: string, referenc
 
 export interface CalendarEventDTO {
   date: DateOnly;
-  type: "SUBSCRIPTION_CHARGE" | "INVOICE_CLOSING" | "INVOICE_DUE" | "TRIAL_ENDING";
+  type: "SUBSCRIPTION_CHARGE" | "INSTALLMENT" | "INVOICE_CLOSING" | "INVOICE_DUE" | "TRIAL_ENDING";
   title: string;
   amountCents: number | null;
   href: string;
+  /** Cobrança prevista (ainda não lançada na fatura). */
+  projected: boolean;
 }
+
+const byDate = (a: CalendarEventDTO, b: CalendarEventDTO) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 
 /** RF-052: eventos dos próximos dias (cobranças, fechamentos, vencimentos, fins de teste). */
 export async function getUpcoming(ctx: QueryContext, days = 14): Promise<CalendarEventDTO[]> {
@@ -170,6 +175,7 @@ export async function getUpcoming(ctx: QueryContext, days = 14): Promise<Calenda
           title: s.name,
           amountCents: n(c.amountCents),
           href: `/subscriptions/${s.id}`,
+          projected: true,
         });
       }
     }
@@ -180,6 +186,7 @@ export async function getUpcoming(ctx: QueryContext, days = 14): Promise<Calenda
         title: `Fim do teste: ${s.name}`,
         amountCents: n(s.amountCents),
         href: `/subscriptions/${s.id}`,
+        projected: false,
       });
     }
   }
@@ -204,6 +211,7 @@ export async function getUpcoming(ctx: QueryContext, days = 14): Promise<Calenda
         title: `Fechamento ${i.card.nickname}`,
         amountCents: null,
         href,
+        projected: false,
       });
     if (due >= today && due <= until && i.status !== "PAID") {
       events.push({
@@ -212,10 +220,160 @@ export async function getUpcoming(ctx: QueryContext, days = 14): Promise<Calenda
         title: `Vencimento ${i.card.nickname}`,
         amountCents: n(i.totalCents - i.paidCents),
         href,
+        projected: false,
       });
     }
   }
-  return events.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return events.sort(byDate);
+}
+
+/** Maior intervalo aceito pelo calendário (uma grade de mês com as bordas). */
+export const CALENDAR_MAX_DAYS = 42;
+
+/**
+ * `/calendar`: tudo que acontece em [from, to] (inclusivo). Cobranças já lançadas vêm das faturas
+ * (assinaturas e parcelas); a partir de hoje entram as próximas cobranças previstas das assinaturas.
+ * Fechamentos e vencimentos usam a fatura gravada ou, se ela ainda não existe, o ciclo do cartão.
+ */
+export async function getCalendar(
+  ctx: QueryContext,
+  from: DateOnly,
+  to: DateOnly,
+): Promise<CalendarEventDTO[]> {
+  if (from > to || daysBetween(from, to) >= CALENDAR_MAX_DAYS) {
+    throw AppError.validation(`Intervalo inválido: até ${CALENDAR_MAX_DAYS} dias.`);
+  }
+  const today = todayOf(ctx);
+  const events: CalendarEventDTO[] = [];
+
+  const [cards, charges, invoices, subs] = await Promise.all([
+    ctx.db.card.findMany({ where: { userId: ctx.user.id } }),
+    ctx.db.charge.findMany({
+      where: {
+        userId: ctx.user.id,
+        sourceType: { in: ["SUBSCRIPTION", "INSTALLMENT"] },
+        chargeDate: { gte: toDbDate(from), lte: toDbDate(to) },
+      },
+      orderBy: [{ chargeDate: "asc" }, { createdAt: "asc" }],
+    }),
+    ctx.db.invoice.findMany({
+      where: {
+        userId: ctx.user.id,
+        OR: [
+          { closingDate: { gte: toDbDate(from), lte: toDbDate(to) } },
+          { dueDate: { gte: toDbDate(from), lte: toDbDate(to) } },
+        ],
+      },
+    }),
+    projectable(ctx),
+  ]);
+  const nickname = new Map(cards.map((c) => [c.id, c.nickname]));
+
+  const materialized = new Set<string>();
+  for (const c of charges) {
+    const date = fromDbDate(c.chargeDate);
+    if (c.subscriptionId) materialized.add(`${c.subscriptionId}:${date}`);
+    events.push({
+      date,
+      type: c.sourceType === "SUBSCRIPTION" ? "SUBSCRIPTION_CHARGE" : "INSTALLMENT",
+      title: c.description,
+      amountCents: n(c.amountCents),
+      href: c.subscriptionId ? `/subscriptions/${c.subscriptionId}` : "/expenses",
+      projected: false,
+    });
+  }
+
+  const start = from > today ? from : today;
+  for (const s of subs) {
+    const card = cards.find((c) => c.id === s.cardId && c.archivedAt === null);
+    if (!card) continue;
+    if (to >= start) {
+      for (const c of projectSubscription(s, card, addDays(to, 1))) {
+        if (c.chargeDate < start || materialized.has(`${s.id}:${c.chargeDate}`)) continue;
+        events.push({
+          date: c.chargeDate,
+          type: "SUBSCRIPTION_CHARGE",
+          title: s.name,
+          amountCents: n(c.amountCents),
+          href: `/subscriptions/${s.id}`,
+          projected: true,
+        });
+      }
+    }
+    if (s.status === "TRIAL" && s.trialEndsOn && s.trialEndsOn >= from && s.trialEndsOn <= to) {
+      events.push({
+        date: s.trialEndsOn,
+        type: "TRIAL_ENDING",
+        title: `Fim do teste: ${s.name}`,
+        amountCents: n(s.amountCents),
+        href: `/subscriptions/${s.id}`,
+        projected: false,
+      });
+    }
+  }
+
+  // Ciclos que podem fechar ou vencer no intervalo: da referência de `from` até 2 meses depois de `to`.
+  const periods = new Map<
+    string,
+    {
+      cardId: string;
+      referenceMonth: YearMonth;
+      closing: DateOnly;
+      due: DateOnly;
+      balance: number | null;
+      paid: boolean;
+    }
+  >();
+  for (const i of invoices) {
+    periods.set(`${i.cardId}:${i.referenceMonth}`, {
+      cardId: i.cardId,
+      referenceMonth: i.referenceMonth as YearMonth,
+      closing: fromDbDate(i.closingDate),
+      due: fromDbDate(i.dueDate),
+      balance: n(i.totalCents - i.paidCents),
+      paid: i.status === "PAID",
+    });
+  }
+  for (const card of cards.filter((c) => c.archivedAt === null)) {
+    for (let ref = yearMonthOf(from); ref <= addYearMonths(yearMonthOf(to), 2); ref = addYearMonths(ref, 1)) {
+      const key = `${card.id}:${ref}`;
+      if (periods.has(key)) continue;
+      const p = invoiceForReference(ref, card);
+      periods.set(key, {
+        cardId: card.id,
+        referenceMonth: ref,
+        closing: p.closingDate,
+        due: p.dueDate,
+        balance: null,
+        paid: false,
+      });
+    }
+  }
+  for (const p of periods.values()) {
+    const name = nickname.get(p.cardId) ?? "Cartão";
+    const href = `/cards/${p.cardId}/invoices/${p.referenceMonth}`;
+    if (p.closing >= from && p.closing <= to) {
+      events.push({
+        date: p.closing,
+        type: "INVOICE_CLOSING",
+        title: `Fechamento ${name}`,
+        amountCents: null,
+        href,
+        projected: false,
+      });
+    }
+    if (p.due >= from && p.due <= to && !p.paid) {
+      events.push({
+        date: p.due,
+        type: "INVOICE_DUE",
+        title: `Vencimento ${name}`,
+        amountCents: p.balance,
+        href,
+        projected: false,
+      });
+    }
+  }
+  return events.sort(byDate);
 }
 
 /** RF-050 a RF-056: painel principal do mês. */
