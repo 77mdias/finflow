@@ -11,7 +11,7 @@ import type { Result } from "@/shared/domain/result";
 import type { Tx } from "@/shared/infrastructure/db";
 
 import { assertOwnCategory } from "@/modules/categories";
-import { postCharge } from "@/modules/invoices";
+import { invoiceFor, isPastDue, postCharge } from "@/modules/invoices";
 
 import {
   cancel,
@@ -140,13 +140,19 @@ export async function createSubscription(
   });
   assertWithinPlan(ctx.user.plan, "subscriptions", live, env().LIMITS_ENFORCED);
 
-  const nextChargeDate = (
+  const firstCharge = (
     input.status === "TRIAL" ? (input.nextChargeDate ?? input.trialEndsOn) : input.nextChargeDate
   )!;
-  if (input.status === "TRIAL" && input.trialEndsOn && nextChargeDate < input.trialEndsOn) {
+  if (input.status === "TRIAL" && input.trialEndsOn && firstCharge < input.trialEndsOn) {
     throw AppError.validation("A primeira cobrança deve ser no fim do teste ou depois.", {
       nextChargeDate: ["Data inválida"],
     });
+  }
+  // Cobranças que cairiam em faturas já vencidas foram pagas antes do FinFlow: começa na primeira a pagar.
+  const anchorDay = parts(firstCharge)[2];
+  let nextChargeDate = firstCharge;
+  while (isPastDue(invoiceFor(nextChargeDate, card), today)) {
+    nextChargeDate = nextOccurrence(nextChargeDate, anchorDay, input.cycle);
   }
   const sub = await ctx.tx.subscription.create({
     data: {
@@ -156,7 +162,7 @@ export async function createSubscription(
       name: input.name,
       amountCents: input.amount,
       cycle: input.cycle,
-      billingAnchorDay: parts(nextChargeDate)[2],
+      billingAnchorDay: anchorDay,
       nextChargeDate: toDbDate(nextChargeDate),
       status: input.status,
       trialEndsOn: input.trialEndsOn ? toDbDate(input.trialEndsOn) : null,
@@ -185,6 +191,17 @@ export async function updateSubscription(
   if (input.nextChargeDate && input.nextChargeDate < today) {
     throw AppError.validation("A próxima cobrança não pode estar no passado.", {
       nextChargeDate: ["Data no passado"],
+    });
+  }
+  // Mesma regra da criação: em teste, a cobrança só começa no fim do teste.
+  if (
+    input.nextChargeDate &&
+    s.status === "TRIAL" &&
+    s.trialEndsOn &&
+    input.nextChargeDate < fromDbDate(s.trialEndsOn)
+  ) {
+    throw AppError.validation("A primeira cobrança deve ser no fim do teste ou depois.", {
+      nextChargeDate: ["Data inválida"],
     });
   }
   await ctx.tx.subscription.update({

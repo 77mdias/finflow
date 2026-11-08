@@ -23,7 +23,7 @@ import { AppError } from "@/shared/domain/errors";
 import type { Tx } from "@/shared/infrastructure/db";
 
 import { assertOwnCategory } from "@/modules/categories";
-import { postCharge, removeCharges } from "@/modules/invoices";
+import { isPastDue, postCharge, removeCharges } from "@/modules/invoices";
 
 import { installmentDescription, MAX_INSTALLMENTS, splitInstallments } from "../domain/installments";
 
@@ -78,14 +78,29 @@ async function activeCard(tx: Tx, userId: string, cardId: string): Promise<Card>
   return card;
 }
 
-/** RN-10: lança todas as parcelas, cada uma na fatura correspondente. */
+/**
+ * RN-10: lança cada parcela na fatura correspondente. Parcelas de faturas já vencidas são
+ * anteriores ao FinFlow e ficam de fora; a numeração (4/10…) continua a da compra.
+ */
 async function postInstallments(tx: Tx, expense: Expense, card: Card, today: DateOnly) {
-  for (const p of splitInstallments(
+  if (expense.totalCents < BigInt(expense.installments)) {
+    throw AppError.validation("O valor precisa ser de ao menos R$ 0,01 por parcela.", {
+      total: ["Valor menor que o número de parcelas"],
+    });
+  }
+  const payable = splitInstallments(
     expense.totalCents,
     expense.installments,
     fromDbDate(expense.purchaseDate),
     card,
-  )) {
+  ).filter((p) => !isPastDue(p.invoice, today));
+  if (payable.length === 0) {
+    throw AppError.validation(
+      "Todas as parcelas desta compra estão em faturas que já venceram. Lance só compras com parcelas a pagar.",
+      { purchaseDate: ["Faturas já vencidas"] },
+    );
+  }
+  for (const p of payable) {
     await postCharge(
       tx,
       {
