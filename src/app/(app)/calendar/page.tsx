@@ -150,7 +150,9 @@ export default async function CalendarPage({
           <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-body text-fg-muted">
             <MoneyDisplay cents={monthCharges} size="heading" />
             <span>
-              {monthProjected === monthCharges ? `em cobranças previstas para ${name}` : `em cobranças em ${name}`}
+              {monthProjected === monthCharges
+                ? `em cobranças previstas para ${name}`
+                : `em cobranças em ${name}`}
               {monthProjected > 0 && monthProjected < monthCharges && (
                 <>
                   , <span className="text-fg tabular-nums">{brl(monthProjected)}</span> ainda previstos
@@ -221,7 +223,10 @@ export default async function CalendarPage({
                           {DATE_MARKERS.filter((m) => dated.some((e) => e.type === m.type)).map((m) => {
                             const { Icon } = EVENT_TYPES[m.type];
                             return (
-                              <span key={m.key} className={`grid size-4 place-items-center rounded-full ${TONE[m.key]}`}>
+                              <span
+                                key={m.key}
+                                className={`grid size-4 place-items-center rounded-full ${TONE[m.key]}`}
+                              >
                                 <Icon aria-hidden size={10} strokeWidth={2} />
                               </span>
                             );
