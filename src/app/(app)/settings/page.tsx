@@ -81,58 +81,63 @@ export default async function SettingsPage() {
         </nav>
       </header>
 
-      <div className="flex max-w-3xl flex-col gap-6">
-        <Section
-          id="perfil"
-          title="Perfil"
-          description="Como você aparece e em que fuso o FinFlow conta os dias."
-        >
-          <ProfileForm
-            profile={{ name: profile.name, email: profile.email, timezone: profile.timezone }}
-            timezones={timezones}
-          />
-        </Section>
+      {/* Duas colunas a partir de xl, em vez de uma coluna estreita com espaço vazio ao lado. */}
+      <div className="grid items-start gap-6 xl:grid-cols-2">
+        <div className="flex flex-col gap-6">
+          <Section
+            id="perfil"
+            title="Perfil"
+            description="Como você aparece e em que fuso o FinFlow conta os dias."
+          >
+            <ProfileForm
+              profile={{ name: profile.name, email: profile.email, timezone: profile.timezone }}
+              timezones={timezones}
+            />
+          </Section>
 
-        <Section
-          id="lembretes"
-          title="Lembretes"
-          description="O job diário avisa conforme estas escolhas. Nada é enviado fora delas."
-        >
-          <PreferencesForm prefs={prefs} />
-        </Section>
+          <Section
+            id="lembretes"
+            title="Lembretes"
+            description="O job diário avisa conforme estas escolhas. Nada é enviado fora delas."
+          >
+            <PreferencesForm prefs={prefs} />
+          </Section>
+        </div>
 
-        <Section
-          id="categorias"
-          title="Categorias"
-          description="Usadas em assinaturas e despesas, e no gráfico de gastos do painel."
-        >
-          <CategoryManager categories={categories} />
-        </Section>
+        <div className="flex flex-col gap-6">
+          <Section
+            id="categorias"
+            title="Categorias"
+            description="Usadas em assinaturas e despesas, e no gráfico de gastos do painel."
+          >
+            <CategoryManager categories={categories} />
+          </Section>
 
-        <Section
-          id="privacidade"
-          title="Privacidade"
-          description="Seus dados são seus: baixe uma cópia completa ou exclua a conta quando quiser."
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <ExportDataLink />
-            <DeleteAccountButton email={profile.email} graceDays={DELETION_GRACE_DAYS} />
+          <Section
+            id="privacidade"
+            title="Privacidade"
+            description="Seus dados são seus: baixe uma cópia completa ou exclua a conta quando quiser."
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <ExportDataLink />
+              <DeleteAccountButton email={profile.email} graceDays={DELETION_GRACE_DAYS} />
+            </div>
+            <p className="mt-6 text-body-sm text-fg-muted">
+              Leia os{" "}
+              <Link href="/termos" className="text-fg underline-offset-4 hover:underline">
+                Termos de uso
+              </Link>{" "}
+              e a{" "}
+              <Link href="/privacidade" className="text-fg underline-offset-4 hover:underline">
+                Política de privacidade
+              </Link>
+              .
+            </p>
+          </Section>
+
+          <div className="flex justify-end lg:hidden">
+            <SignOutButton />
           </div>
-          <p className="mt-6 text-body-sm text-fg-muted">
-            Leia os{" "}
-            <Link href="/termos" className="text-fg underline-offset-4 hover:underline">
-              Termos de uso
-            </Link>{" "}
-            e a{" "}
-            <Link href="/privacidade" className="text-fg underline-offset-4 hover:underline">
-              Política de privacidade
-            </Link>
-            .
-          </p>
-        </Section>
-
-        <div className="flex justify-end lg:hidden">
-          <SignOutButton />
         </div>
       </div>
     </div>

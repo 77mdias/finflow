@@ -279,13 +279,13 @@ Movimento **curto, suave e com propósito**: confirma uma ação, mostra de onde
 
 ### 4.5 Breakpoints e largura
 
-| Nome   | Min  | Layout do app                                                                                |
-| ------ | ---- | -------------------------------------------------------------------------------------------- |
-| `base` | 0    | 1 coluna, bottom nav + FAB                                                                   |
-| `sm`   | 640  | 1 coluna, cards em 2 colunas quando curtos                                                   |
-| `md`   | 768  | 2 colunas                                                                                    |
-| `lg`   | 1024 | Sidebar fixa (248 px) + conteúdo                                                             |
-| `xl`   | 1280 | Conteúdo máx. **1120 px**; landing em **largura total** (só blocos de texto limitam a linha) |
+| Nome   | Min  | Layout do app                                                                                                                                                                         |
+| ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base` | 0    | 1 coluna, bottom nav + FAB                                                                                                                                                            |
+| `sm`   | 640  | 1 coluna, cards em 2 colunas quando curtos                                                                                                                                            |
+| `md`   | 768  | 2 colunas                                                                                                                                                                             |
+| `lg`   | 1024 | Sidebar fixa (248 px) + conteúdo                                                                                                                                                      |
+| `xl`   | 1280 | App e landing em **largura total**, sem `max-width` no container (só blocos de texto limitam a linha); grades ganham colunas (configurações em 2, assinaturas em 4 a partir de `2xl`) |
 
 ---
 

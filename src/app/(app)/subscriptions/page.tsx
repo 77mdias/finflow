@@ -175,7 +175,7 @@ export default async function SubscriptionsPage({
               {shown.length === 0 ? (
                 <p className="text-body text-fg-muted">Nenhuma assinatura neste filtro.</p>
               ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                   {shown.map((s) => (
                     <li key={s.id} className="min-w-0">
                       <SubscriptionCard sub={s} today={today} />
@@ -194,7 +194,7 @@ export default async function SubscriptionsPage({
               <p className="mt-1 text-body-sm text-fg-muted">
                 Fora do custo mensal. Dá para duplicar se você assinar de novo.
               </p>
-              <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {canceled.map((s) => (
                   <li key={s.id} className="min-w-0">
                     <SubscriptionCard sub={s} today={today} />
