@@ -233,7 +233,8 @@ export const CALENDAR_MAX_DAYS = 42;
 /**
  * `/calendar`: tudo que acontece em [from, to] (inclusivo). Cobranças já lançadas vêm das faturas
  * (assinaturas e parcelas); a partir de hoje entram as próximas cobranças previstas das assinaturas.
- * Fechamentos e vencimentos usam a fatura gravada ou, se ela ainda não existe, o ciclo do cartão.
+ * Fechamentos e vencimentos usam a fatura gravada ou, se ela ainda não existe, o ciclo do cartão
+ * (do ciclo atual em diante).
  */
 export async function getCalendar(
   ctx: QueryContext,
@@ -338,7 +339,11 @@ export async function getCalendar(
     });
   }
   for (const card of cards.filter((c) => c.archivedAt === null)) {
-    for (let ref = yearMonthOf(from); ref <= addYearMonths(yearMonthOf(to), 2); ref = addYearMonths(ref, 1)) {
+    // Sem fatura gravada, um ciclo anterior ao atual do cartão não tem nada a pagar (antes de o cartão
+    // existir, ou enquanto esteve arquivado): só se calculam ciclos do atual em diante.
+    const current = invoiceFor(today, card).referenceMonth;
+    const first = yearMonthOf(from) > current ? yearMonthOf(from) : current;
+    for (let ref = first; ref <= addYearMonths(yearMonthOf(to), 2); ref = addYearMonths(ref, 1)) {
       const key = `${card.id}:${ref}`;
       if (periods.has(key)) continue;
       const p = invoiceForReference(ref, card);
