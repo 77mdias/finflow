@@ -9,7 +9,7 @@
 import "dotenv/config";
 
 import { addDays, addMonthsTo, todayIn, type DateOnly } from "../src/shared/domain/date-only";
-import { systemClock } from "../src/shared/infrastructure/clock";
+import { fixedClock, systemClock } from "../src/shared/infrastructure/clock";
 import { prisma, transaction } from "../src/shared/infrastructure/db";
 import { MemoryMailer } from "../src/shared/infrastructure/mailer";
 import type { UseCaseContext, UserContext } from "../src/shared/application/context";
@@ -36,8 +36,10 @@ async function main() {
   await db.user.update({ where: { id: created.id }, data: { onboardingCompletedAt: new Date() } });
 
   const user: UserContext = { id: created.id, timezone: TZ, plan: "FREE" };
-  const run = <T>(fn: (ctx: UseCaseContext) => Promise<T>) =>
-    transaction((tx) => fn({ tx, user, clock: systemClock }));
+  // `asOf`: lança como se fosse naquele dia (meio-dia em São Paulo). Lançar o passado "hoje" deixaria
+  // de fora o que cai em faturas já vencidas; o job diário abaixo completa o histórico até hoje.
+  const run = <T>(fn: (ctx: UseCaseContext) => Promise<T>, asOf?: DateOnly) =>
+    transaction((tx) => fn({ tx, user, clock: asOf ? fixedClock(`${asOf}T15:00:00.000Z`) : systemClock }));
   const today = todayIn(TZ);
   const cat = Object.fromEntries((await listCategories(db, user.id)).map((c) => [c.name, c.id]));
   const ago = (days: number): DateOnly => addDays(today, -days);
@@ -78,16 +80,18 @@ async function main() {
     { name: "Xbox Game Pass", amount: 5_999n, card: loja.id, cat: "Jogos", next: ago(20) },
   ] as const;
   for (const s of subs) {
-    await run((ctx) =>
-      createSubscription(ctx, {
-        name: s.name,
-        amount: s.amount,
-        cycle: "MONTHLY",
-        nextChargeDate: s.next,
-        cardId: s.card,
-        categoryId: cat[s.cat],
-        status: "ACTIVE",
-      }),
+    await run(
+      (ctx) =>
+        createSubscription(ctx, {
+          name: s.name,
+          amount: s.amount,
+          cycle: "MONTHLY",
+          nextChargeDate: s.next,
+          cardId: s.card,
+          categoryId: cat[s.cat],
+          status: "ACTIVE",
+        }),
+      s.next,
     );
   }
   await run((ctx) =>
@@ -113,25 +117,29 @@ async function main() {
     }),
   );
 
-  await run((ctx) =>
-    createExpense(ctx, {
-      description: "Notebook",
-      total: 480_000n,
-      purchaseDate: ago(45),
-      cardId: roxinho.id,
-      categoryId: cat["Compras"],
-      installments: 10,
-    }),
+  await run(
+    (ctx) =>
+      createExpense(ctx, {
+        description: "Notebook",
+        total: 480_000n,
+        purchaseDate: ago(45),
+        cardId: roxinho.id,
+        categoryId: cat["Compras"],
+        installments: 10,
+      }),
+    ago(45),
   );
-  await run((ctx) =>
-    createExpense(ctx, {
-      description: "Passagem aérea",
-      total: 186_000n,
-      purchaseDate: ago(12),
-      cardId: azul.id,
-      categoryId: cat["Transporte"],
-      installments: 3,
-    }),
+  await run(
+    (ctx) =>
+      createExpense(ctx, {
+        description: "Passagem aérea",
+        total: 186_000n,
+        purchaseDate: ago(12),
+        cardId: azul.id,
+        categoryId: cat["Transporte"],
+        installments: 3,
+      }),
+    ago(12),
   );
   await run((ctx) =>
     createExpense(ctx, {

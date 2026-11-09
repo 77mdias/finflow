@@ -39,7 +39,13 @@ function savedMessage(e: ExpenseDTO): string {
   const last = e.schedule.at(-1)!;
   if (e.installments === 1)
     return `${brl(e.totalCents)} lançado na fatura de ${shortRef(first.referenceMonth)}`;
-  return `${brl(e.totalCents)} em ${e.installments}x de ${brl(last.amountCents)} · ${shortRef(first.referenceMonth)} → ${shortRef(last.referenceMonth)}`;
+  // Parcelas de faturas já vencidas ficam fora (pagas antes do FinFlow): o cronograma começa depois delas.
+  const skipped = first.number - 1;
+  const outside =
+    skipped > 0
+      ? ` · ${skipped} ${skipped === 1 ? "parcela já vencida ficou" : "parcelas já vencidas ficaram"} de fora`
+      : "";
+  return `${brl(e.totalCents)} em ${e.installments}x de ${brl(last.amountCents)} · ${shortRef(first.referenceMonth)} → ${shortRef(last.referenceMonth)}${outside}`;
 }
 
 /** RF-032: parcela em fatura fechada trava valor, data, cartão e parcelas (corrige-se com ajuste). */

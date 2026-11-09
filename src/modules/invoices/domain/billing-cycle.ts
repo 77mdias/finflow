@@ -53,6 +53,12 @@ export function invoiceForReference(referenceMonth: YearMonth, card: CardCycle):
   return invoiceClosingIn(cy, cm, card);
 }
 
+/**
+ * Fatura com vencimento já passado. Ao lançar algo com data antiga, o que cairia numa fatura
+ * dessas é anterior ao FinFlow (foi pago fora dele) e não entra em fatura nenhuma.
+ */
+export const isPastDue = (p: Pick<InvoicePeriod, "dueDate">, today: DateOnly): boolean => today > p.dueDate;
+
 /** A data pertence ao período `[periodStart, closingDate)`? */
 export const isWithinPeriod = (d: DateOnly, p: Pick<InvoicePeriod, "periodStart" | "closingDate">): boolean =>
   d >= p.periodStart && d < p.closingDate;

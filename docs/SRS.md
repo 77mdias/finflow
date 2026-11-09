@@ -231,6 +231,9 @@ Prioridade: **M** = Must (MVP), **S** = Should (MVP se houver tempo), **C** = Co
 - Valor base: `floor(V / N)` centavos; o **resto** é somado à **1ª parcela**. Ex.: R$ 100,00 em 3x → 33,34 + 33,33 + 33,33.
 - Parcela 1 vai para a fatura de `d` (RN-06); a parcela `k` vai para a fatura **`k−1` ciclos depois** da 1ª — uma parcela por fatura consecutiva. A data exibida da parcela `k` é `d + (k−1) meses` (RN-02), mas **não** é usada para escolher a fatura (com fechamento dia 31 e compra dia 30, a data ajustada de fevereiro cairia no fechamento e pularia uma fatura).
 - Descrição da cobrança: `"<descrição> (k/N)"`.
+- Total menor que `N` centavos é recusado (nenhuma parcela pode ser zero).
+
+**RN-10a — Lançamento anterior ao FinFlow.** Ao criar ou editar uma despesa, parcelas cuja fatura **já venceu** (vencimento antes de hoje) foram pagas fora do FinFlow e não são lançadas; a numeração das demais continua a da compra (`4/10`, …). Se todas as parcelas caem em faturas vencidas, o lançamento é recusado. Parcela de fatura fechada e ainda não vencida entra nela normalmente (compra esquecida). Ao criar uma assinatura com primeira cobrança no passado, `next_charge_date` avança pelas ocorrências que cairiam em faturas vencidas, mantendo o dia original (`billing_anchor_day`). A materialização diária (RN-11) não segue esta regra: se o job atrasar, a cobrança entra na fatura dela mesmo que já tenha fechado.
 
 ### 4.4 Limite
 
