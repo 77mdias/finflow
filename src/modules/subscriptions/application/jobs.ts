@@ -18,7 +18,8 @@ export async function materializeDueSubscriptions(
       OR: [
         { status: "ACTIVE", nextChargeDate: { lte: maxToday } },
         { status: "TRIAL", trialEndsOn: { lte: maxToday } },
-        { status: "CANCELED", nextChargeDate: { lte: maxToday }, canceledOn: { not: null } },
+        // Cancelada só enquanto tem ocorrência antes da data efetiva (isBillable); depois, sai do job.
+        { status: "CANCELED", nextChargeDate: { lte: maxToday, lt: tx.subscription.fields.canceledOn } },
       ],
     },
     select: { id: true, userId: true, status: true },

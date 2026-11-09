@@ -7,7 +7,9 @@ import type { Db, Tx } from "@/shared/infrastructure/db";
 import { logger } from "@/shared/infrastructure/logger";
 import type { Mailer } from "@/shared/infrastructure/mailer";
 
-import { dueReminders } from "../domain/reminders";
+import { nextStatus } from "@/modules/invoices";
+
+import { dueReminders, MAX_LATE_DAYS } from "../domain/reminders";
 import { digestEmail, reminderEmail, type ReminderItem } from "./templates";
 import { unsubscribeUrl } from "./unsubscribe";
 
@@ -26,12 +28,13 @@ export async function generateReminders(tx: Tx, users: ReadonlyArray<{ id: strin
     const prefs =
       user.notificationPreference ?? (await tx.notificationPreference.create({ data: { userId } }));
     const horizon = toDbDate(addDays(today, 10));
-    const [invoices, subscriptions] = await Promise.all([
+    const [invoices, subscriptions, chargedToday] = await Promise.all([
       tx.invoice.findMany({
         where: {
           userId,
           status: { in: ["OPEN", "CLOSED", "PARTIALLY_PAID", "OVERDUE"] },
-          dueDate: { gte: toDbDate(addDays(today, -1)), lte: horizon },
+          // Vencidas até o último dia em que o alerta ainda sai atrasado.
+          dueDate: { gte: toDbDate(addDays(today, -1 - MAX_LATE_DAYS)), lte: horizon },
         },
         include: { card: { select: { nickname: true } } },
       }),
@@ -45,6 +48,16 @@ export async function generateReminders(tx: Tx, users: ReadonlyArray<{ id: strin
           ],
         },
         include: { card: { select: { nickname: true } } },
+      }),
+      // Cobrança de hoje já lançada pelo job diário, que avançou a próxima data (lembrete "no dia").
+      tx.charge.findMany({
+        where: {
+          userId,
+          sourceType: "SUBSCRIPTION",
+          chargeDate: toDbDate(today),
+          subscriptionId: { not: null },
+        },
+        include: { subscription: { select: { name: true } }, card: { select: { nickname: true } } },
       }),
     ]);
     const candidates = dueReminders({
@@ -62,23 +75,46 @@ export async function generateReminders(tx: Tx, users: ReadonlyArray<{ id: strin
         cardId: i.cardId,
         cardNickname: i.card.nickname,
         referenceMonth: i.referenceMonth,
-        status: i.status,
+        // Status calculado para hoje no fuso do usuário: o gravado pode estar um dia atrasado
+        // (o job diário roda na véspera a oeste de UTC−3).
+        status: nextStatus(
+          {
+            closingDate: fromDbDate(i.closingDate),
+            dueDate: fromDbDate(i.dueDate),
+            totalCents: i.totalCents,
+            paidCents: i.paidCents,
+          },
+          today,
+        ),
         dueDate: fromDbDate(i.dueDate),
         balanceCents: i.totalCents - i.paidCents,
       })),
-      subscriptions: subscriptions.map((s) => ({
-        id: s.id,
-        name: s.name,
-        status: s.status,
-        nextChargeDate: fromDbDate(s.nextChargeDate),
-        amountCents: s.amountCents,
-        trialEndsOn: s.trialEndsOn ? fromDbDate(s.trialEndsOn) : null,
-        canceledOn: s.canceledOn ? fromDbDate(s.canceledOn) : null,
-        cardNickname: s.card.nickname,
-      })),
+      subscriptions: [
+        ...subscriptions.map((s) => ({
+          id: s.id,
+          name: s.name,
+          status: s.status,
+          nextChargeDate: fromDbDate(s.nextChargeDate),
+          amountCents: s.amountCents,
+          trialEndsOn: s.trialEndsOn ? fromDbDate(s.trialEndsOn) : null,
+          canceledOn: s.canceledOn ? fromDbDate(s.canceledOn) : null,
+          cardNickname: s.card.nickname,
+        })),
+        ...chargedToday.map((c) => ({
+          id: c.subscriptionId!,
+          name: c.subscription?.name ?? c.description,
+          status: "ACTIVE" as const,
+          nextChargeDate: today,
+          amountCents: c.amountCents,
+          trialEndsOn: null,
+          canceledOn: null,
+          cardNickname: c.card.nickname,
+        })),
+      ],
     });
     const now = new Date();
-    const rows = candidates.flatMap((c) => {
+    const unique = new Map(candidates.map((c) => [`${c.type}:${c.entityId}:${c.targetDate}`, c]));
+    const rows = [...unique.values()].flatMap((c) => {
       const base = {
         userId,
         type: c.type,

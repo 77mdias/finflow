@@ -9,7 +9,14 @@ import { ensureCurrentInvoices, reconcileInvoiceTotals, updateInvoiceStatuses } 
 import { generateReminders, sendPendingEmails } from "@/modules/notifications";
 import { materializeDueSubscriptions } from "@/modules/subscriptions";
 
-import { forEachUserBatch, inLocalWindow, runJob, type JobRunResult } from "./runner";
+import {
+  forEachUser,
+  forEachUserBatch,
+  inLocalWindow,
+  mergeStats,
+  runJob,
+  type JobRunResult,
+} from "./runner";
 
 export interface JobDeps {
   db: PrismaClient;
@@ -18,50 +25,62 @@ export interface JobDeps {
 }
 
 /**
- * Job diário (ARCHITECTURE §7): por lote de usuários, em uma transação —
- * materializa assinaturas (inclui conversão de testes), fecha/vence faturas,
- * garante a fatura corrente e reconcilia caches. Idempotente.
+ * Job diário (ARCHITECTURE §7): por usuário, em uma transação — materializa assinaturas
+ * (inclui conversão de testes), fecha/vence faturas, garante a fatura corrente e reconcilia
+ * caches. Idempotente; retoma do cursor se a execução anterior caiu.
  */
 export function runDailyJob({ db, clock }: JobDeps): Promise<JobRunResult> {
-  return runJob(db, "DAILY", async ({ stats, addError }) => {
+  return runJob(db, "DAILY", async ({ stats, addError, resumeAfter, checkpoint }) => {
     await forEachUserBatch(
       db,
       clock,
       (users) =>
-        transaction(async (tx) => {
-          const batch = users.map((u) => ({ id: u.id, today: u.today }));
-          const a = await materializeDueSubscriptions(tx, batch);
-          const b = await updateInvoiceStatuses(tx, batch);
-          const c = await ensureCurrentInvoices(tx, batch);
-          const d = await reconcileInvoiceTotals(
-            tx,
-            batch.map((u) => u.id),
-          );
-          return { ...a, ...b, ...c, ...d };
-        }, db),
-      { stats, addError },
+        forEachUser(
+          users,
+          (u) =>
+            transaction(async (tx) => {
+              const one = [{ id: u.id, today: u.today }];
+              const a = await materializeDueSubscriptions(tx, one);
+              const b = await updateInvoiceStatuses(tx, one);
+              const c = await ensureCurrentInvoices(tx, one);
+              const d = await reconcileInvoiceTotals(tx, [u.id]);
+              return { ...a, ...b, ...c, ...d };
+            }, db),
+          addError,
+        ),
+      { stats, addError, resumeAfter, checkpoint },
     );
     Object.assign(stats, await deleteExpiredAuthRecords(db, clock.now()));
   });
 }
 
-/** Job de lembretes (RF-060..RF-067): gera notificações e envia e-mails pendentes. */
+/** Job de lembretes (RF-060..RF-067): gera notificações (por usuário) e envia e-mails pendentes. */
 export function runRemindersJob({ db, clock, mailer }: JobDeps): Promise<JobRunResult> {
-  return runJob(db, "REMINDERS", async ({ stats, addError }) => {
+  return runJob(db, "REMINDERS", async ({ stats, addError, resumeAfter, checkpoint }) => {
     await forEachUserBatch(
       db,
       clock,
       async (users) => {
-        const batch = users.map((u) => ({ id: u.id, today: u.today }));
-        const generated = await transaction((tx) => generateReminders(tx, batch), db);
+        const generated = await forEachUser(
+          users,
+          (u) => transaction((tx) => generateReminders(tx, [{ id: u.id, today: u.today }]), db),
+          addError,
+        );
         const sent = await sendPendingEmails(
           db,
           mailer,
-          batch.map((u) => u.id),
+          users.map((u) => u.id),
         );
-        return { ...generated, ...sent };
+        mergeStats(generated, sent);
+        return generated;
       },
-      { stats, addError, ...(env().REMINDER_LOCAL_WINDOW ? { filter: inLocalWindow(clock) } : {}) },
+      {
+        stats,
+        addError,
+        resumeAfter,
+        checkpoint,
+        ...(env().REMINDER_LOCAL_WINDOW ? { filter: inLocalWindow(clock) } : {}),
+      },
     );
   });
 }

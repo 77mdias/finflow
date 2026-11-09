@@ -512,7 +512,7 @@ Especificação completa em [API_SPEC.md](API_SPEC.md) e [api/openapi.yaml](api/
 | ID | Requisito |
 |---|---|
 | RNF-20 | Disponibilidade alvo 99,5% mensal. |
-| RNF-21 | Jobs idempotentes e reexecutáveis; uma execução perdida é compensada na seguinte (processam "tudo pendente até hoje", não "apenas hoje"). |
+| RNF-21 | Jobs idempotentes e reexecutáveis; uma execução perdida é compensada na seguinte (processam "tudo pendente até hoje", não "apenas hoje"). Lembretes perdidos ainda saem até 2 dias depois, com o prazo real no texto; a execução que cai retoma do último usuário concluído. |
 | RNF-22 | Backups: PITR do provedor (mín. 24 h no free tier; 7 dias ao migrar para plano pago) + dump lógico diário para armazenamento externo (retenção 30 dias). |
 | RNF-23 | RPO ≤ 24 h, RTO ≤ 4 h. |
 

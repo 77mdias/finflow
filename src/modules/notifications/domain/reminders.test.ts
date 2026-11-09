@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseDateOnly } from "@/shared/domain/date-only";
 
-import { dueReminders, type ReminderPreferences } from "./reminders";
+import { dueReminders, type ReminderInvoice, type ReminderPreferences } from "./reminders";
 
 const d = (s: string) => parseDateOnly(s);
 const prefs: ReminderPreferences = {
@@ -101,6 +101,47 @@ describe("dueReminders (RF-060 a RF-063)", () => {
     expect(r3.map((x) => x.type)).toEqual(["TRIAL_ENDING"]);
     expect(r1.map((x) => x.type)).toEqual(["TRIAL_ENDING"]);
     expect(r3[0]!.targetDate).not.toBe(r1[0]!.targetDate);
+  });
+
+  it("lembrete atrasado sai até 2 dias depois, com o prazo real (RNF-21)", () => {
+    const on = (today: string, extra: Partial<ReminderInvoice> = {}) =>
+      dueReminders({
+        today: d(today),
+        prefs,
+        invoices: [{ ...invoice, ...extra }],
+        subscriptions: [subscription],
+      }).map((x) => [x.type, x.targetDate, x.title]);
+    // Vencimento em 05/12 (aviso em 02/12) e Netflix em 03/12 (aviso em 02/12).
+    expect(on("2026-12-03")).toEqual([
+      ["INVOICE_DUE", "2026-12-05", "Fatura do Roxinho vence em 2 dias — R$ 842,17"],
+      ["SUBSCRIPTION_CHARGE", "2026-12-03", "Netflix será cobrada hoje — R$ 55,90"],
+    ]);
+    expect(on("2026-12-04")).toEqual([
+      ["INVOICE_DUE", "2026-12-05", "Fatura do Roxinho vence amanhã — R$ 842,17"],
+    ]);
+    expect(on("2026-12-05")).toEqual([]);
+    // Vencida: aviso em 06/12; até 08/12 ainda sai.
+    expect(on("2026-12-08", { status: "OVERDUE" })).toEqual([
+      ["INVOICE_OVERDUE", "2026-12-05", "Fatura do Roxinho venceu há 3 dias"],
+    ]);
+    expect(on("2026-12-09", { status: "OVERDUE" })).toEqual([]);
+  });
+
+  it("fim de teste atrasado: um aviso por dia, o mais recente que ainda vale", () => {
+    const trial = {
+      ...subscription,
+      status: "TRIAL" as const,
+      trialEndsOn: d("2026-12-10"),
+      nextChargeDate: d("2026-12-10"),
+    };
+    const on = (today: string) =>
+      dueReminders({ today: d(today), prefs, invoices: [], subscriptions: [trial] }).map((x) => [
+        x.targetDate,
+        x.title,
+      ]);
+    expect(on("2026-12-08")).toEqual([["2026-12-07", "Seu teste de Netflix acaba em 2 dias"]]);
+    expect(on("2026-12-10")).toEqual([["2026-12-09", "Seu teste de Netflix acaba hoje"]]);
+    expect(on("2026-12-11")).toEqual([]);
   });
 
   it("cancelada não avisa cobrança após a data efetiva", () => {
