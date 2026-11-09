@@ -249,7 +249,9 @@ sequenceDiagram
 | `reminders` | `0 * * * *` (horário) | Para usuários cujo horário local está na janela 08:00–09:00 (RN-20): calcular lembretes do dia, inserir em `notification` e enviar | `UNIQUE (user, type, entity, target_date, channel)` |
 | `purge` | `0 5 * * 0` (semanal) | Remover definitivamente contas com `deleted_at` > 30 dias | Delete por critério |
 
-- Processamento em **lotes de 200 usuários** com cursor; cada lote em transação curta.
+- Processamento em **lotes de 200 usuários**, com **uma transação por usuário**: o erro ou o timeout de um vira erro registrado (`PARTIAL`) e não desfaz o trabalho dos outros.
+- Cursor em `job_runs.cursor` (último usuário concluído, gravado a cada lote): se a execução cai (`FAILED`, inclusive travada), a seguinte começa depois dele e dá a volta até ele; ao terminar, o cursor é limpo.
+- Lembretes usam o status da fatura calculado para o dia do usuário (`nextStatus`), não o gravado; o "no dia" da assinatura lê a cobrança já lançada hoje; um lembrete perdido sai até 2 dias depois, com o prazo real no texto (RNF-21).
 - Cada execução grava em `job_run` (início, fim, contadores, erro) e reporta ao Sentry (Cron Monitoring).
 - Plano Hobby do Vercel limita crons a 1x/dia: no MVP o `reminders` roda junto do `daily` às 11:00 UTC (08:00 BRT); ao migrar para Pro, passa a ser horário (suporte multi-fuso). Alternativa gratuita: GitHub Actions `schedule` chamando o endpoint.
 

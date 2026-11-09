@@ -479,6 +479,8 @@ model JobRun {
   finishedAt DateTime? @map("finished_at") @db.Timestamptz(3)
   stats      Json?
   error      String?   @db.Text
+  /// Último usuário concluído; a execução seguinte retoma depois dele se esta não terminou.
+  cursor     String?   @db.Uuid
 
   @@index([job, startedAt])
   @@map("job_runs")
