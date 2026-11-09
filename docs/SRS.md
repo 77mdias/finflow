@@ -209,7 +209,7 @@ Prioridade: **M** = Must (MVP), **S** = Should (MVP se houver tempo), **C** = Co
 | 25/11/2026 | 25/12/2026 | 05/01/2027 | 2027-01 |
 | 28/11/2026 | 25/12/2026 | 05/01/2027 | 2027-01 |
 
-**RN-07 — Alteração das datas do cartão.** Mudar `closing_day`/`due_day` recalcula as datas apenas de faturas com status `OPEN` ou futuras; cobranças dessas faturas são reatribuídas pela RN-06. Faturas `CLOSED`, `PAID`, `PARTIALLY_PAID` e `OVERDUE` permanecem intactas.
+**RN-07 — Alteração das datas do cartão.** Mudar `closing_day`/`due_day` recalcula as datas apenas de faturas com status `OPEN` ou futuras; cobranças dessas faturas são reatribuídas pela RN-06. Faturas `CLOSED`, `PAID`, `PARTIALLY_PAID` e `OVERDUE` permanecem intactas. O novo ciclo vale só para faturas cujo fechamento recalculado fica depois de hoje: a fatura aberta mantém as datas se o novo fechamento já passou, e a cobrança que a RN-06 mandaria para uma fatura já fechada fica na fatura aberta em que está. A mudança é recusada se, pelo novo ciclo, a fatura de hoje já tiver fechado (as compras novas cairiam nela); vale tentar de novo a partir do fechamento dela.
 
 **RN-08 — Dias não úteis.** No MVP, as datas exibidas são as calculadas. O usuário pode ajustar manualmente uma fatura (RF-047). Ajuste automático para próximo dia útil (fins de semana + feriados nacionais) fica para v1.1.
 
@@ -459,7 +459,7 @@ Telas do MVP (detalhamento de navegação em [FLOW_MAP.md](FLOW_MAP.md)):
 | `/cards/[id]/invoices/[ref]` | Fatura de um mês (`ref` = `YYYY-MM`) |
 | `/subscriptions`, `/subscriptions/[id]` | Lista e detalhe de assinatura |
 | `/expenses` | Despesas e parcelamentos |
-| `/calendar` | Calendário de eventos (cobranças, fechamentos, vencimentos) |
+| `/calendar` | Calendário de eventos (cobranças, fechamentos, vencimentos). Sem fatura gravada, só aparecem ciclos do atual do cartão em diante: no passado, ausência de fatura é nada a pagar |
 | `/notifications` | Central de notificações |
 | `/settings/*` | Perfil, notificações, categorias, privacidade (exportar/excluir) |
 

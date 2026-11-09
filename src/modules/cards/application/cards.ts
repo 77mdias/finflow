@@ -165,11 +165,25 @@ export async function updateCard(ctx: UseCaseContext, input: z.infer<typeof Upda
 }
 
 /**
- * RN-07: redistribui as cobranças das faturas OPEN (sem datas manuais) pelo novo ciclo.
- * Se o novo ciclo exigir lançar em uma fatura já fechada, a operação é recusada.
+ * RN-07: redistribui as cobranças das faturas OPEN (sem datas manuais) pelo novo ciclo, que vale só
+ * para faturas cujo fechamento recalculado fica depois de hoje. A fatura aberta mantém as datas se o
+ * novo fechamento já passou, e a cobrança que iria para uma fatura já fechada fica onde está.
+ * Recusa o novo ciclo se a fatura de hoje por ele já tiver fechado (as compras novas cairiam nela).
  */
 async function reassignOpenInvoices(ctx: UseCaseContext, card: Card): Promise<number> {
   const today = todayOf(ctx);
+  const cycle: CardCycle = card;
+  const now = invoiceFor(today, cycle);
+  const taken = await ctx.tx.invoice.findUnique({
+    where: { cardId_referenceMonth: { cardId: card.id, referenceMonth: now.referenceMonth } },
+  });
+  if (taken && taken.status !== "OPEN") {
+    const [, month, day] = now.closingDate.split("-");
+    throw new AppError(
+      "INVOICE_LOCKED",
+      `Com esse ciclo, as compras de hoje iriam para a fatura ${now.referenceMonth}, que já fechou. Faça a mudança a partir de ${day}/${month}.`,
+    );
+  }
   const open = await ctx.tx.invoice.findMany({
     where: { cardId: card.id, status: "OPEN", datesOverridden: false },
     include: {
@@ -177,9 +191,8 @@ async function reassignOpenInvoices(ctx: UseCaseContext, card: Card): Promise<nu
       _count: { select: { payments: true } },
     },
   });
-  const cycle: CardCycle = card;
   const target = new Map<string, InvoicePeriod>();
-  const moves: { chargeId: string; period: InvoicePeriod }[] = [];
+  const moves: { chargeId: string; from: string; period: InvoicePeriod }[] = [];
   for (const inv of open) {
     for (const ch of inv.charges) {
       const period =
@@ -187,12 +200,13 @@ async function reassignOpenInvoices(ctx: UseCaseContext, card: Card): Promise<nu
           ? invoiceFor(fromDbDate(ch.expense.purchaseDate), cycle, ch.installmentNumber - 1)
           : invoiceFor(fromDbDate(ch.chargeDate), cycle);
       target.set(period.referenceMonth, period);
-      moves.push({ chargeId: ch.id, period });
+      moves.push({ chargeId: ch.id, from: inv.id, period });
     }
   }
-  // Recalcula datas das faturas abertas existentes pelo novo ciclo.
+  // Recalcula datas das faturas abertas pelo novo ciclo, salvo as que por ele já teriam fechado.
   for (const inv of open) {
     const p = invoiceForReference(parseYearMonth(inv.referenceMonth), cycle);
+    if (p.closingDate <= today) continue;
     await ctx.tx.invoice.update({
       where: { id: inv.id },
       data: {
@@ -207,19 +221,15 @@ async function reassignOpenInvoices(ctx: UseCaseContext, card: Card): Promise<nu
     const existing = await ctx.tx.invoice.findUnique({
       where: { cardId_referenceMonth: { cardId: card.id, referenceMonth: ref } },
     });
-    if (existing && existing.status !== "OPEN") {
-      throw new AppError(
-        "INVOICE_LOCKED",
-        `O novo ciclo moveria cobranças para a fatura ${ref}, que já está fechada.`,
-      );
+    if (existing ? existing.status === "OPEN" : period.closingDate > today) {
+      invoiceIdByRef.set(ref, (existing ?? (await getOrCreateInvoice(ctx.tx, card, period))).id);
     }
-    invoiceIdByRef.set(ref, (existing ?? (await getOrCreateInvoice(ctx.tx, card, period))).id);
   }
   for (const m of moves) {
-    await ctx.tx.charge.update({
-      where: { id: m.chargeId },
-      data: { invoiceId: invoiceIdByRef.get(m.period.referenceMonth)! },
-    });
+    const invoiceId = invoiceIdByRef.get(m.period.referenceMonth) ?? m.from;
+    if (invoiceId !== m.from) {
+      await ctx.tx.charge.update({ where: { id: m.chargeId }, data: { invoiceId } });
+    }
   }
   const touched = new Set([...open.map((i) => i.id), ...invoiceIdByRef.values()]);
   const current = invoiceFor(today, cycle).referenceMonth;
